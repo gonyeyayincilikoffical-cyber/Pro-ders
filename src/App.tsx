@@ -9,8 +9,15 @@ import {
   saveStoredAttempt,
   exportBackupJSON,
   importBackupJSON,
-  loadSampleCurriculum,
-  clearAllCourseData
+  clearAllCourseData,
+  fetchCurriculumFromServer,
+  serverSaveSummary,
+  serverDeleteSummary,
+  serverSaveTest,
+  serverDeleteTest,
+  serverLoadPreset,
+  serverImportBackup,
+  serverResetCurriculum
 } from './utils/storage';
 import { Header } from './components/Header';
 import { BentoGrid } from './components/BentoGrid';
@@ -44,6 +51,7 @@ export default function App() {
 
   // Modal visibility states
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminPasswordKey, setAdminPasswordKey] = useState<string>('');
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [activeSummaryForReading, setActiveSummaryForReading] = useState<SubjectSummary | null>(null);
   const [activeTestForPlaying, setActiveTestForPlaying] = useState<QuizTest | null>(null);
@@ -76,19 +84,25 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Load initial content from LocalStorage on mount
+  // Load content from LocalStorage first, then fetch latest from server (cross-device synchronization)
   useEffect(() => {
     setSummaries(getStoredSummaries());
     setTests(getStoredTests());
     setAttempts(getStoredAttempts());
+
+    // Fetch from server so any other device that published content immediately updates this device
+    fetchCurriculumFromServer().then(({ summaries: serverSummaries, tests: serverTests }) => {
+      setSummaries(serverSummaries);
+      setTests(serverTests);
+    });
   }, []);
 
   const handleToggleTheme = () => {
     setIsDarkMode((prev) => !prev);
   };
 
-  // Summary handlers
-  const handleSaveSummary = (newSummary: SubjectSummary) => {
+  // Summary handlers (with server sync)
+  const handleSaveSummary = async (newSummary: SubjectSummary) => {
     let updated: SubjectSummary[];
     const exists = summaries.some((s) => s.id === newSummary.id);
     if (exists) {
@@ -100,17 +114,23 @@ export default function App() {
     }
     setSummaries(updated);
     saveStoredSummaries(updated);
+
+    // Sync to server so all devices see this summary
+    await serverSaveSummary(newSummary, adminPasswordKey);
   };
 
-  const handleDeleteSummary = (id: string) => {
+  const handleDeleteSummary = async (id: string, password?: string) => {
     const updated = summaries.filter((s) => s.id !== id);
     setSummaries(updated);
     saveStoredSummaries(updated);
     showToast('Konu özeti başarıyla silindi.');
+
+    // Sync deletion to server
+    await serverDeleteSummary(id, password || adminPasswordKey);
   };
 
-  // Test handlers
-  const handleSaveTest = (newTest: QuizTest) => {
+  // Test handlers (with server sync)
+  const handleSaveTest = async (newTest: QuizTest) => {
     let updated: QuizTest[];
     const exists = tests.some((t) => t.id === newTest.id);
     if (exists) {
@@ -122,13 +142,19 @@ export default function App() {
     }
     setTests(updated);
     saveStoredTests(updated);
+
+    // Sync to server so all devices see this test
+    await serverSaveTest(newTest, adminPasswordKey);
   };
 
-  const handleDeleteTest = (id: string) => {
+  const handleDeleteTest = async (id: string, password?: string) => {
     const updated = tests.filter((t) => t.id !== id);
     setTests(updated);
     saveStoredTests(updated);
     showToast('Test başarıyla silindi.');
+
+    // Sync deletion to server
+    await serverDeleteTest(id, password || adminPasswordKey);
   };
 
   // Backup & Restore
@@ -144,16 +170,24 @@ export default function App() {
     showToast('Yedek dosyası başarıyla indirildi.');
   };
 
-  const handleImportBackup = (file: File) => {
+  const handleImportBackup = async (file: File, password?: string) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
       if (content) {
         const result = importBackupJSON(content);
         if (result.success) {
-          setSummaries(getStoredSummaries());
-          setTests(getStoredTests());
+          const loadedSummaries = getStoredSummaries();
+          const loadedTests = getStoredTests();
+          setSummaries(loadedSummaries);
+          setTests(loadedTests);
           showToast(result.message);
+
+          // Sync imported data to server
+          await serverImportBackup(
+            { summaries: loadedSummaries, tests: loadedTests },
+            password || adminPasswordKey
+          );
         } else {
           showToast(result.message, 'error');
         }
@@ -162,16 +196,18 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Preset loader
-  const handleLoadSampleCurriculum = () => {
-    const counts = loadSampleCurriculum();
-    setSummaries(getStoredSummaries());
-    setTests(getStoredTests());
-    showToast(`Örnek 6. Sınıf müfredatı yüklendi! (${counts.summariesCount} Özet, ${counts.testsCount} Test)`);
+  // Preset loader (sync to server for all devices)
+  const handleLoadSampleCurriculum = async (password?: string) => {
+    await serverLoadPreset(password || adminPasswordKey);
+    const { summaries: serverSummaries, tests: serverTests } = await fetchCurriculumFromServer();
+    setSummaries(serverSummaries);
+    setTests(serverTests);
+    showToast(`Örnek 6. Sınıf müfredatı yüklendi! (${serverSummaries.length} Özet, ${serverTests.length} Test)`);
   };
 
   // Clear data
-  const handleClearAllData = () => {
+  const handleClearAllData = async (password?: string) => {
+    await serverResetCurriculum(password || adminPasswordKey);
     clearAllCourseData();
     setSummaries([]);
     setTests([]);
@@ -274,20 +310,24 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         summaries={summaries}
         tests={tests}
-        onAddNewSummary={() => {
+        onAddNewSummary={(pwd) => {
+          if (pwd) setAdminPasswordKey(pwd);
           setEditingSummary(null);
           setIsSummaryFormOpen(true);
         }}
-        onEditSummary={(s) => {
+        onEditSummary={(s, pwd) => {
+          if (pwd) setAdminPasswordKey(pwd);
           setEditingSummary(s);
           setIsSummaryFormOpen(true);
         }}
         onDeleteSummary={handleDeleteSummary}
-        onAddNewTest={() => {
+        onAddNewTest={(pwd) => {
+          if (pwd) setAdminPasswordKey(pwd);
           setEditingTest(null);
           setIsTestFormOpen(true);
         }}
-        onEditTest={(t) => {
+        onEditTest={(t, pwd) => {
+          if (pwd) setAdminPasswordKey(pwd);
           setEditingTest(t);
           setIsTestFormOpen(true);
         }}

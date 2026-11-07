@@ -18,8 +18,7 @@ function isLocalStorageAvailable(): boolean {
 }
 
 /**
- * Loads published subject summaries.
- * Initial state MUST be an empty array unless published via Admin mode.
+ * Loads published subject summaries from LocalStorage cache.
  */
 export function getStoredSummaries(): SubjectSummary[] {
   if (!isLocalStorageAvailable()) return [];
@@ -46,8 +45,7 @@ export function saveStoredSummaries(summaries: SubjectSummary[]): boolean {
 }
 
 /**
- * Loads published 10-question tests.
- * Initial state MUST be an empty array unless published via Admin mode.
+ * Loads published 10-question tests from LocalStorage cache.
  */
 export function getStoredTests(): QuizTest[] {
   if (!isLocalStorageAvailable()) return [];
@@ -138,9 +136,6 @@ export function importBackupJSON(jsonStr: string): ImportResult {
   }
 }
 
-/**
- * Loads authentic sample curriculum data on demand from Admin mode.
- */
 export function loadSampleCurriculum(): { summariesCount: number; testsCount: number } {
   saveStoredSummaries(SAMPLE_6TH_GRADE_SUMMARIES);
   saveStoredTests(SAMPLE_6TH_GRADE_TESTS);
@@ -150,12 +145,152 @@ export function loadSampleCurriculum(): { summariesCount: number; testsCount: nu
   };
 }
 
-/**
- * Clears all content, reverting to a clean slate.
- */
 export function clearAllCourseData(): void {
   if (!isLocalStorageAvailable()) return;
   localStorage.removeItem(STORAGE_KEYS.SUMMARIES);
   localStorage.removeItem(STORAGE_KEYS.TESTS);
   localStorage.removeItem(STORAGE_KEYS.ATTEMPTS);
+}
+
+// -------------------------------------------------------------
+// FULL-STACK SERVER API (Multi-device synchronization)
+// -------------------------------------------------------------
+
+/**
+ * Fetches the global curriculum from the server.
+ * This guarantees that content created from ANY device is instantly available across ALL devices.
+ */
+export async function fetchCurriculumFromServer(): Promise<{ summaries: SubjectSummary[]; tests: QuizTest[] }> {
+  try {
+    const res = await fetch('/api/curriculum');
+    if (!res.ok) {
+      throw new Error(`Sunucu hatası: ${res.status}`);
+    }
+    const data = await res.json();
+    const summaries = Array.isArray(data.summaries) ? data.summaries : [];
+    const tests = Array.isArray(data.tests) ? data.tests : [];
+
+    // Cache locally
+    saveStoredSummaries(summaries);
+    saveStoredTests(tests);
+
+    return { summaries, tests };
+  } catch (err) {
+    console.warn('Sunucu senkronizasyonu yapılamadı, yerel önbellek kullanılıyor:', err);
+    return {
+      summaries: getStoredSummaries(),
+      tests: getStoredTests(),
+    };
+  }
+}
+
+export async function serverSaveSummary(summary: SubjectSummary, adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/summaries', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': adminPassword || '',
+      },
+      body: JSON.stringify(summary),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Özet sunucuya kaydedilemedi:', err);
+    return false;
+  }
+}
+
+export async function serverDeleteSummary(id: string, adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/summaries/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-Admin-Password': adminPassword || '',
+      },
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Özet sunucudan silinemedi:', err);
+    return false;
+  }
+}
+
+export async function serverSaveTest(test: QuizTest, adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/tests', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': adminPassword || '',
+      },
+      body: JSON.stringify(test),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Test sunucuya kaydedilemedi:', err);
+    return false;
+  }
+}
+
+export async function serverDeleteTest(id: string, adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/tests/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-Admin-Password': adminPassword || '',
+      },
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Test sunucudan silinemedi:', err);
+    return false;
+  }
+}
+
+export async function serverLoadPreset(adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/curriculum/preset', {
+      method: 'POST',
+      headers: {
+        'X-Admin-Password': adminPassword || '',
+      },
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Örnek müfredat sunucuya yüklenemedi:', err);
+    return false;
+  }
+}
+
+export async function serverImportBackup(data: { summaries: any[]; tests: any[] }, adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/curriculum/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': adminPassword || '',
+      },
+      body: JSON.stringify(data),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Yedek sunucuya aktarılamadı:', err);
+    return false;
+  }
+}
+
+export async function serverResetCurriculum(adminPassword?: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/curriculum/reset', {
+      method: 'POST',
+      headers: {
+        'X-Admin-Password': adminPassword || '',
+      },
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Sunucu verisi sıfırlanamadı:', err);
+    return false;
+  }
 }

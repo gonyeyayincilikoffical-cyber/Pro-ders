@@ -33,16 +33,16 @@ interface AdminModalProps {
   onClose: () => void;
   summaries: SubjectSummary[];
   tests: QuizTest[];
-  onAddNewSummary: () => void;
-  onEditSummary: (summary: SubjectSummary) => void;
-  onDeleteSummary: (id: string) => void;
-  onAddNewTest: () => void;
-  onEditTest: (test: QuizTest) => void;
-  onDeleteTest: (id: string) => void;
+  onAddNewSummary: (password?: string) => void;
+  onEditSummary: (summary: SubjectSummary, password?: string) => void;
+  onDeleteSummary: (id: string, password?: string) => void;
+  onAddNewTest: (password?: string) => void;
+  onEditTest: (test: QuizTest, password?: string) => void;
+  onDeleteTest: (id: string, password?: string) => void;
   onExportBackup: () => void;
-  onImportBackup: (file: File) => void;
-  onLoadSampleCurriculum: () => void;
-  onClearAllData: () => void;
+  onImportBackup: (file: File, password?: string) => void;
+  onLoadSampleCurriculum: (password?: string) => void;
+  onClearAllData: (password?: string) => void;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -67,6 +67,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     failedAttempts: 0,
     lockoutUntil: null,
   });
+  const [adminKey, setAdminKey] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -114,6 +115,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         failedAttempts: 0,
         lockoutUntil: null,
       });
+      setAdminKey(passwordInput.trim());
       setPasswordInput('');
       setAuthError(null);
     } else {
@@ -139,6 +141,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       failedAttempts: 0,
       lockoutUntil: null,
     });
+    setAdminKey('');
     setPasswordInput('');
     setAuthError(null);
   };
@@ -250,11 +253,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </button>
             </form>
 
-            <div className="pt-2 text-xs text-slate-600 dark:text-slate-400 space-y-1">
-              <div>Güvenlik Politikası: 3 Hatalı Girişte 60sn Kilitlenme</div>
-              <div className="font-mono text-slate-500 dark:text-slate-400 text-2xs">
-                Varsayılan Anahtar: ProDers2026!AdminSecuredKey#8492
-              </div>
+            <div className="pt-2 text-xs text-slate-500 dark:text-slate-400">
+              Güvenlik Politikası: 3 hatalı denemede 60 saniye kilitlenme uygulanır.
             </div>
           </div>
         ) : (
@@ -316,7 +316,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               {/* Action buttons based on active tab */}
               {adminTab === 'summaries' && (
                 <button
-                  onClick={onAddNewSummary}
+                  onClick={() => onAddNewSummary(adminKey)}
                   className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -326,7 +326,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
               {adminTab === 'tests' && (
                 <button
-                  onClick={onAddNewTest}
+                  onClick={() => onAddNewTest(adminKey)}
                   className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -358,7 +358,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         Henüz sisteme eklenmiş bir konu özeti bulunmamaktadır.
                       </div>
                       <button
-                        onClick={onAddNewSummary}
+                        onClick={() => onAddNewSummary(adminKey)}
                         className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold inline-flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -390,7 +390,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                             <button
-                              onClick={() => onEditSummary(summary)}
+                              onClick={() => onEditSummary(summary, adminKey)}
                               className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               title="Düzenle"
                             >
@@ -399,7 +399,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <button
                               onClick={() => {
                                 if (window.confirm(`"${summary.topicTitle}" özetini silmek istediğinize emin misiniz?`)) {
-                                  onDeleteSummary(summary.id);
+                                  onDeleteSummary(summary.id, adminKey);
                                 }
                               }}
                               className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
@@ -435,7 +435,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         Henüz sisteme eklenmiş bir test bulunmamaktadır.
                       </div>
                       <button
-                        onClick={onAddNewTest}
+                        onClick={() => onAddNewTest(adminKey)}
                         className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -467,7 +467,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                             <button
-                              onClick={() => onEditTest(test)}
+                              onClick={() => onEditTest(test, adminKey)}
                               className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               title="Testi Düzenle"
                             >
@@ -476,7 +476,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <button
                               onClick={() => {
                                 if (window.confirm(`"${test.title}" testini silmek istediğinize emin misiniz?`)) {
-                                  onDeleteTest(test.id);
+                                  onDeleteTest(test.id, adminKey);
                                 }
                               }}
                               className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
@@ -540,7 +540,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            onImportBackup(file);
+                            onImportBackup(file, adminKey);
                           }
                         }}
                       />
@@ -571,7 +571,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     <button
-                      onClick={onLoadSampleCurriculum}
+                      onClick={() => onLoadSampleCurriculum(adminKey)}
                       className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2"
                     >
                       <Sparkles className="w-4 h-4" />
@@ -591,7 +591,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <button
                       onClick={() => {
                         if (window.confirm('Tüm veriler kalıcı olarak silinecektir. Devam etmek istiyor musunuz?')) {
-                          onClearAllData();
+                          onClearAllData(adminKey);
                         }
                       }}
                       className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5"
