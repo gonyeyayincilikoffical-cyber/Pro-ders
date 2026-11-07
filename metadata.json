@@ -1,0 +1,6 @@
+{
+  "name": "ProDers - 6. Sınıf Fen Bilimleri",
+  "description": "6. Sınıf Fen Bilimleri müfredatına uygun konu özetleri ve 10 soruluk interaktif test platformu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
