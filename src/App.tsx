@@ -38,17 +38,27 @@ export default function App() {
     return true; // default dark
   });
 
+  // Secret route handling: only "/adminpanelyonetici" triggers Admin Mode
+  const [currentRoute, setCurrentRoute] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path.includes('adminpanelyonetici') || hash.includes('adminpanelyonetici')) {
+        return '/adminpanelyonetici';
+      }
+    }
+    return '/';
+  });
+
   // Course content states (Empty by default on initial launch)
   const [summaries, setSummaries] = useState<SubjectSummary[]>([]);
   const [tests, setTests] = useState<QuizTest[]>([]);
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
-  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
   // Navigation / filtering state
   const [activeTab, setActiveTab] = useState<'all' | 'summaries' | 'tests'>('all');
 
   // Modal visibility states
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [activeSummaryForReading, setActiveSummaryForReading] = useState<SubjectSummary | null>(null);
   const [activeTestForPlaying, setActiveTestForPlaying] = useState<QuizTest | null>(null);
@@ -81,23 +91,47 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Sync URL changes (e.g. user types /adminpanelyonetici or navigates back)
+  useEffect(() => {
+    const syncRoute = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path.includes('adminpanelyonetici') || hash.includes('adminpanelyonetici')) {
+        setCurrentRoute('/adminpanelyonetici');
+      } else {
+        setCurrentRoute('/');
+      }
+    };
+
+    window.addEventListener('popstate', syncRoute);
+    window.addEventListener('hashchange', syncRoute);
+    return () => {
+      window.removeEventListener('popstate', syncRoute);
+      window.removeEventListener('hashchange', syncRoute);
+    };
+  }, []);
+
+  const navigateToStudent = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+      window.location.hash = '';
+      setCurrentRoute('/');
+    }
+  };
+
   // Load content: First instant LocalStorage offline fallback, then fetch from Firebase Firestore Cloud
   useEffect(() => {
-    // 1. Instant local fallback
     setSummaries(getStoredSummaries());
     setTests(getStoredTests());
     setAttempts(getStoredAttempts());
 
-    // 2. Fetch from Firebase Firestore cloud database so any device sees published content
     fetchCurriculumFromCloud()
       .then(({ summaries: cloudSummaries, tests: cloudTests }) => {
         setSummaries(cloudSummaries);
         setTests(cloudTests);
-        setIsCloudSynced(true);
       })
       .catch((err) => {
         console.warn('Bulut veritabanı senkronizasyon uyarısı:', err);
-        setIsCloudSynced(false);
       });
   }, []);
 
@@ -118,7 +152,6 @@ export default function App() {
     }
     setSummaries(updated);
 
-    // Save to Firebase Firestore cloud database
     await saveSummaryToCloud(newSummary);
   };
 
@@ -142,7 +175,6 @@ export default function App() {
     }
     setTests(updated);
 
-    // Save to Firebase Firestore cloud database
     await saveTestToCloud(newTest);
   };
 
@@ -239,11 +271,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header - Strictly Student Mode with no Admin links */}
       <Header
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
-        onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenStats={() => setIsStatsOpen(true)}
         activeTab={activeTab}
         onChangeTab={setActiveTab}
@@ -259,7 +290,6 @@ export default function App() {
           attempts={attempts}
           onSelectSummary={(s) => setActiveSummaryForReading(s)}
           onSelectTest={(t) => setActiveTestForPlaying(t)}
-          onOpenAdmin={() => setIsAdminOpen(true)}
           activeFilter={activeTab}
           onFilterChange={setActiveTab}
         />
@@ -285,24 +315,24 @@ export default function App() {
       </footer>
 
       {/* Modals */}
-      {/* 1. Summary Reader Modal */}
+      {/* 1. Summary Reader Modal with PDF Download */}
       <SummaryReaderModal
         summary={activeSummaryForReading}
         onClose={() => setActiveSummaryForReading(null)}
         onOpenTestForUnit={handleOpenTestForUnit}
       />
 
-      {/* 2. Interactive Test Player Modal */}
+      {/* 2. Interactive Test Player Modal with PDF Download */}
       <TestPlayerModal
         test={activeTestForPlaying}
         onClose={() => setActiveTestForPlaying(null)}
         onSaveAttempt={handleSaveAttempt}
       />
 
-      {/* 3. Ultra Secure Admin Control Modal */}
+      {/* 3. Ultra Secure Admin Control Modal: Only accessible via secret route "/adminpanelyonetici" */}
       <AdminModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
+        isOpen={currentRoute === '/adminpanelyonetici'}
+        onClose={navigateToStudent}
         summaries={summaries}
         tests={tests}
         onAddNewSummary={() => {

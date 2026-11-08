@@ -4,7 +4,6 @@ import {
   verifyAdminPassword, 
   handleFailedAttempt, 
   checkAdminLockout, 
-  MASTER_ADMIN_PASSWORD,
   MAX_ADMIN_ATTEMPTS
 } from '../utils/security';
 import { 
@@ -25,7 +24,8 @@ import {
   Database, 
   Info,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  ArrowLeft
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -101,7 +101,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const lockout = checkAdminLockout(authState.lockoutUntil);
     if (lockout.isLocked) {
@@ -109,7 +109,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return;
     }
 
-    if (verifyAdminPassword(passwordInput)) {
+    const isValid = await verifyAdminPassword(passwordInput);
+    if (isValid) {
       setAuthState({
         isAuthenticated: true,
         failedAttempts: 0,
@@ -186,10 +187,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-              title="Kapat"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              title="Öğrenci Arayüzüne Dön"
             >
-              <X className="w-5 h-5" />
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Öğrenci Sayfasına Dön</span>
+              <X className="w-4 h-4 sm:hidden" />
             </button>
           </div>
         </div>

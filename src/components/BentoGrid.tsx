@@ -4,14 +4,12 @@ import {
   BookOpen, 
   CheckSquare, 
   Clock, 
-  Award, 
   Search, 
   Sparkles, 
-  ShieldCheck, 
   ArrowRight,
-  Flame,
   CheckCircle2,
-  ListFilter
+  ListFilter,
+  GraduationCap
 } from 'lucide-react';
 
 interface BentoGridProps {
@@ -20,7 +18,6 @@ interface BentoGridProps {
   attempts: TestAttempt[];
   onSelectSummary: (summary: SubjectSummary) => void;
   onSelectTest: (test: QuizTest) => void;
-  onOpenAdmin: () => void;
   activeFilter: 'all' | 'summaries' | 'tests';
   onFilterChange: (filter: 'all' | 'summaries' | 'tests') => void;
 }
@@ -31,7 +28,6 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
   attempts,
   onSelectSummary,
   onSelectTest,
-  onOpenAdmin,
   activeFilter,
   onFilterChange,
 }) => {
@@ -69,7 +65,6 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
   });
 
   // Overall student stats
-  const totalCompletedTests = attempts.length;
   const averageScore =
     attempts.length > 0
       ? Math.round(attempts.reduce((acc, a) => acc + a.scorePercentage, 0) / attempts.length)
@@ -174,7 +169,7 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
         </div>
       )}
 
-      {/* 1. EMPTY STATE - STRICT REQUIREMENT */}
+      {/* 1. STUDENT-FACING CLEAN EMPTY STATE (NO ADMIN PROMPTS) */}
       {isEmpty ? (
         <div className="border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-8 sm:p-14 text-center bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm max-w-3xl mx-auto space-y-6">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
@@ -183,34 +178,24 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
 
           <div className="space-y-2">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-heading">
-              Henüz Eklenmiş Konu Özeti veya Test Bulunmamaktadır
+              Henüz Eklenmiş Bir Konu Özeti veya Test Bulunmamaktadır
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
-              ProDers platformu ilk açılışta temiz bir başlangıç durumundadır. 6. Sınıf Fen Bilimleri ünitelerine ait konu özetleri ve 10 soruluk testler Yönetici Modu üzerinden sisteme eklendiğinde burada anında listelenecektir.
+              6. Sınıf Fen Bilimleri ünitelerine ait konu özetleri ve 10 soruluk pekiştirme testleri öğretmeniniz tarafından sisteme yüklendiğinde bu alanda otomatik olarak listelenecektir.
             </p>
           </div>
 
-          <div className="pt-2">
-            <button
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm transition-all shadow-md shadow-cyan-600/20"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Yönetici Modu ile İçerik Ekle</span>
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-center justify-center gap-4">
-            <span>• Yerel Bellek (LocalStorage) Korumalı</span>
-            <span>• Şifreli Yönetici Paneli</span>
-            <span>• JSON Yedekleme Desteği</span>
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-center gap-4">
+            <span>• Bulut Veritabanı ile Canlı Senkron</span>
+            <span>• MEB Müfredatı ile Tam Uyumlu</span>
+            <span>• PDF Ders Notu İndirme Desteği</span>
           </div>
         </div>
       ) : (
         /* 2. DYNAMIC BENTO GRID LAYOUT */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
-          {/* Bento Tile 1: Top Statistics & Study Overview (Spans 1 or 2 cols) */}
+          {/* Bento Tile 1: Top Statistics & Study Overview */}
           <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 text-white p-6 border border-slate-700 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center md:text-left">
               <div className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-400">
@@ -253,7 +238,7 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
             </div>
           </div>
 
-          {/* Render Summaries (if active filter includes summaries) */}
+          {/* Render Summaries */}
           {(activeFilter === 'all' || activeFilter === 'summaries') &&
             filteredSummaries.map((summary) => (
               <div
@@ -315,7 +300,7 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
               </div>
             ))}
 
-          {/* Render Tests (if active filter includes tests) */}
+          {/* Render Tests */}
           {(activeFilter === 'all' || activeFilter === 'tests') &&
             filteredTests.map((test) => {
               const attempt = attempts.find((a) => a.testId === test.id);
@@ -368,7 +353,7 @@ export const BentoGrid: React.FC<BentoGridProps> = ({
               );
             })}
 
-          {/* If search query filters out everything */}
+          {/* Search fallback message */}
           {((activeFilter === 'summaries' && filteredSummaries.length === 0) ||
             (activeFilter === 'tests' && filteredTests.length === 0) ||
             (activeFilter === 'all' && filteredSummaries.length === 0 && filteredTests.length === 0)) && (

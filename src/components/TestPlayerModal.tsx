@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QuizTest, QuestionOption, TestAttempt } from '../types';
 import { computeQuizScore, formatDuration, ScoreSummary } from '../utils/scoring';
+import { downloadTestPDF } from '../utils/pdfExport';
 import { 
   X, 
   CheckCircle2, 
@@ -12,8 +13,9 @@ import {
   Check, 
   HelpCircle,
   Clock,
-  Sparkles,
-  Trophy
+  Trophy,
+  Download,
+  Loader2
 } from 'lucide-react';
 
 interface TestPlayerModalProps {
@@ -33,6 +35,7 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
   const [showInstantExplanation, setShowInstantExplanation] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Timer
   useEffect(() => {
@@ -95,6 +98,18 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
     setScoreSummary(null);
   };
 
+  const handleDownloadPDF = async () => {
+    if (isExportingPDF) return;
+    try {
+      setIsExportingPDF(true);
+      await downloadTestPDF(test);
+    } catch (err) {
+      console.error('Test PDF indirilirken hata:', err);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   const answeredCount = Object.keys(answers).length;
 
   return (
@@ -121,7 +136,27 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* PDF Download Button (Top Header Bar) */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isExportingPDF}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+              title="10 Soruluk Testi PDF Olarak İndir"
+            >
+              {isExportingPDF ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden sm:inline">PDF Hazırlanıyor...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>PDF Olarak İndir</span>
+                </>
+              )}
+            </button>
+
             {/* Timer Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs font-mono font-medium text-slate-700 dark:text-slate-300">
               <Clock className="w-3.5 h-3.5 text-cyan-500" />
@@ -208,7 +243,6 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
                   stateClass = 'bg-blue-50 dark:bg-blue-950/40 border-blue-600 text-blue-900 dark:text-blue-100 font-semibold ring-1 ring-blue-500';
                 }
 
-                // If instant explanation is enabled and option is selected
                 if (showInstantExplanation && isSelected) {
                   if (isCorrect) {
                     stateClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-100';
@@ -240,7 +274,7 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
               })}
             </div>
 
-            {/* Instant Solution Feedback (if enabled) */}
+            {/* Instant Solution Feedback */}
             {showInstantExplanation && currentAnswer && (
               <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 space-y-1.5 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-300">
@@ -255,7 +289,7 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
 
           </div>
         ) : (
-          /* Results and Detailed Review View */
+          /* Results View */
           <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8">
             
             {/* Scorecard Hero */}
@@ -307,7 +341,7 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
               </div>
             </div>
 
-            {/* Detailed Question by Question Review */}
+            {/* Detailed Question Review */}
             <div className="space-y-4">
               <h4 className="text-lg font-bold text-slate-900 dark:text-white font-heading">
                 Detaylı Soru ve Çözüm İncelemesi
@@ -357,7 +391,6 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
                         {q.questionText}
                       </p>
 
-                      {/* Options Recap */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         {(['A', 'B', 'C', 'D'] as QuestionOption[]).map((key) => {
                           const isKeyCorrect = q.correctAnswer === key;
@@ -385,7 +418,6 @@ export const TestPlayerModal: React.FC<TestPlayerModalProps> = ({
                         })}
                       </div>
 
-                      {/* Solution Explanation */}
                       <div className="mt-3 p-3 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                         <strong className="text-blue-600 dark:text-blue-400">Çözüm ve Açıklama:</strong> {q.explanation}
                       </div>

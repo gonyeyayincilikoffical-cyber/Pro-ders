@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SubjectSummary } from '../types';
-import { X, BookOpen, Clock, AlertTriangle, Key, Award, Copy, Check, Type, ArrowLeft } from 'lucide-react';
+import { downloadSummaryPDF } from '../utils/pdfExport';
+import { X, Clock, AlertTriangle, Key, Award, Copy, Check, ArrowLeft, Download, Loader2 } from 'lucide-react';
 
 interface SummaryReaderModalProps {
   summary: SubjectSummary | null;
@@ -15,6 +16,7 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
 }) => {
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'huge'>('normal');
   const [copied, setCopied] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   if (!summary) return null;
 
@@ -23,6 +25,18 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (isExportingPDF) return;
+    try {
+      setIsExportingPDF(true);
+      await downloadSummaryPDF(summary);
+    } catch (err) {
+      console.error('PDF oluşturulurken hata:', err);
+    } finally {
+      setIsExportingPDF(false);
+    }
   };
 
   // Font size styling
@@ -57,6 +71,26 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* PDF Download Button (prominent in top header bar) */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isExportingPDF}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+              title="Konu Özetini PDF Olarak İndir"
+            >
+              {isExportingPDF ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden sm:inline">PDF Hazırlanıyor...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>PDF Olarak İndir</span>
+                </>
+              )}
+            </button>
+
             {/* Font Size Toggle */}
             <div className="hidden sm:flex items-center bg-slate-200 dark:bg-slate-800 p-0.5 rounded-lg text-xs">
               <button
@@ -144,10 +178,9 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
             </div>
           )}
 
-          {/* Summary Prose Body (Formatted with subheadings and lists) */}
+          {/* Summary Prose Body */}
           <div className={`space-y-6 ${fontSizeClass}`}>
             {summary.summaryContent.split('\n\n').map((paragraph, idx) => {
-              // Heading 3: ### Heading (may have content on subsequent lines)
               if (paragraph.startsWith('### ')) {
                 const lines = paragraph.split('\n');
                 const headingText = lines[0].replace('### ', '');
@@ -166,7 +199,6 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
                   </div>
                 );
               }
-              // Heading 4: #### Heading
               if (paragraph.startsWith('#### ')) {
                 const lines = paragraph.split('\n');
                 const headingText = lines[0].replace('#### ', '');
@@ -186,11 +218,9 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
                   </div>
                 );
               }
-              // Horizontal rule
               if (paragraph.trim() === '---') {
                 return <hr key={idx} className="my-6 border-slate-200 dark:border-slate-800" />;
               }
-              // List items
               if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
                 const lines = paragraph.split('\n');
                 return (
@@ -206,7 +236,6 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
                   </ul>
                 );
               }
-              // Numbered list
               if (/^\d+\.\s/.test(paragraph)) {
                 const lines = paragraph.split('\n');
                 return (
@@ -219,7 +248,6 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
                   </ol>
                 );
               }
-              // Standard paragraph
               return (
                 <p
                   key={idx}
@@ -250,7 +278,7 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
             </div>
           )}
 
-          {/* Critical Exam Points / Sınav İpuçları */}
+          {/* Critical Exam Points */}
           {summary.criticalPoints && summary.criticalPoints.length > 0 && (
             <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wide">
@@ -301,7 +329,6 @@ export const SummaryReaderModal: React.FC<SummaryReaderModalProps> = ({
   );
 };
 
-// Helper for bold and italic markdown tags
 function formatBold(str: string): string {
   return str
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')

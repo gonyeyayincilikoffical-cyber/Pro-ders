@@ -1,15 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyAdminPassword, handleFailedAttempt, checkAdminLockout, MASTER_ADMIN_PASSWORD } from './security';
+import { verifyAdminPassword, handleFailedAttempt, checkAdminLockout, MASTER_ADMIN_HASH } from './security';
 import { computeQuizScore, formatDuration } from './scoring';
 import { importBackupJSON } from './storage';
 import { TestQuestion } from '../types';
 
-test('security: admin master password verification', () => {
-  assert.equal(verifyAdminPassword(MASTER_ADMIN_PASSWORD), true);
-  assert.equal(verifyAdminPassword('wrongPassword'), false);
-  assert.equal(verifyAdminPassword(''), false);
-  assert.equal(verifyAdminPassword('  ProDers2026!AdminSecuredKey#8492  '), true, 'handles whitespace trimming');
+test('security: SHA-256 admin password verification', async () => {
+  const validPassword = 'ProDers2026!AdminSecuredKey#8492';
+  assert.equal(await verifyAdminPassword(validPassword), true);
+  assert.equal(await verifyAdminPassword('wrongPassword'), false);
+  assert.equal(await verifyAdminPassword(''), false);
+  assert.equal(await verifyAdminPassword('  ProDers2026!AdminSecuredKey#8492  '), true, 'handles whitespace trimming');
+  assert.equal(MASTER_ADMIN_HASH, '797df55e9d46b0f9e2bf83e1730e618494b2953b345d42bc1dc8e78e82a96507');
 });
 
 test('security: lockout triggers after 3 failed attempts', () => {
