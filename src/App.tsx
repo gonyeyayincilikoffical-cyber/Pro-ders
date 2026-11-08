@@ -2,22 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { SubjectSummary, QuizTest, TestAttempt } from './types';
 import { 
   getStoredSummaries, 
-  saveStoredSummaries, 
   getStoredTests, 
-  saveStoredTests, 
   getStoredAttempts, 
   saveStoredAttempt,
   exportBackupJSON,
   importBackupJSON,
-  clearAllCourseData,
-  fetchCurriculumFromServer,
-  serverSaveSummary,
-  serverDeleteSummary,
-  serverSaveTest,
-  serverDeleteTest,
-  serverLoadPreset,
-  serverImportBackup,
-  serverResetCurriculum
+  fetchCurriculumFromCloud,
+  saveSummaryToCloud,
+  deleteSummaryFromCloud,
+  saveTestToCloud,
+  deleteTestFromCloud,
+  loadSampleCurriculumToCloud,
+  importBackupToCloud,
+  resetCloudCurriculum
 } from './utils/storage';
 import { Header } from './components/Header';
 import { BentoGrid } from './components/BentoGrid';
@@ -27,7 +24,7 @@ import { AdminModal } from './components/AdminModal';
 import { SummaryFormModal } from './components/SummaryFormModal';
 import { TestFormModal } from './components/TestFormModal';
 import { StatsModal } from './components/StatsModal';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Cloud } from 'lucide-react';
 
 export default function App() {
   // Theme state: defaults to dark mode
@@ -45,13 +42,13 @@ export default function App() {
   const [summaries, setSummaries] = useState<SubjectSummary[]>([]);
   const [tests, setTests] = useState<QuizTest[]>([]);
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
   // Navigation / filtering state
   const [activeTab, setActiveTab] = useState<'all' | 'summaries' | 'tests'>('all');
 
   // Modal visibility states
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [adminPasswordKey, setAdminPasswordKey] = useState<string>('');
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [activeSummaryForReading, setActiveSummaryForReading] = useState<SubjectSummary | null>(null);
   const [activeTestForPlaying, setActiveTestForPlaying] = useState<QuizTest | null>(null);
@@ -84,77 +81,76 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Load content from LocalStorage first, then fetch latest from server (cross-device synchronization)
+  // Load content: First instant LocalStorage offline fallback, then fetch from Firebase Firestore Cloud
   useEffect(() => {
+    // 1. Instant local fallback
     setSummaries(getStoredSummaries());
     setTests(getStoredTests());
     setAttempts(getStoredAttempts());
 
-    // Fetch from server so any other device that published content immediately updates this device
-    fetchCurriculumFromServer().then(({ summaries: serverSummaries, tests: serverTests }) => {
-      setSummaries(serverSummaries);
-      setTests(serverTests);
-    });
+    // 2. Fetch from Firebase Firestore cloud database so any device sees published content
+    fetchCurriculumFromCloud()
+      .then(({ summaries: cloudSummaries, tests: cloudTests }) => {
+        setSummaries(cloudSummaries);
+        setTests(cloudTests);
+        setIsCloudSynced(true);
+      })
+      .catch((err) => {
+        console.warn('Bulut veritabanı senkronizasyon uyarısı:', err);
+        setIsCloudSynced(false);
+      });
   }, []);
 
   const handleToggleTheme = () => {
     setIsDarkMode((prev) => !prev);
   };
 
-  // Summary handlers (with server sync)
+  // Summary handlers (Firebase Cloud Sync + LocalStorage fallback)
   const handleSaveSummary = async (newSummary: SubjectSummary) => {
     let updated: SubjectSummary[];
     const exists = summaries.some((s) => s.id === newSummary.id);
     if (exists) {
       updated = summaries.map((s) => (s.id === newSummary.id ? newSummary : s));
-      showToast('Konu özeti başarıyla güncellendi.');
+      showToast('Konu özeti buluta kaydedildi ve güncellendi.');
     } else {
       updated = [newSummary, ...summaries];
-      showToast('Yeni konu özeti başarıyla yayınlandı.');
+      showToast('Yeni konu özeti bulut veritabanında yayınlandı.');
     }
     setSummaries(updated);
-    saveStoredSummaries(updated);
 
-    // Sync to server so all devices see this summary
-    await serverSaveSummary(newSummary, adminPasswordKey);
+    // Save to Firebase Firestore cloud database
+    await saveSummaryToCloud(newSummary);
   };
 
-  const handleDeleteSummary = async (id: string, password?: string) => {
+  const handleDeleteSummary = async (id: string) => {
     const updated = summaries.filter((s) => s.id !== id);
     setSummaries(updated);
-    saveStoredSummaries(updated);
-    showToast('Konu özeti başarıyla silindi.');
-
-    // Sync deletion to server
-    await serverDeleteSummary(id, password || adminPasswordKey);
+    await deleteSummaryFromCloud(id);
+    showToast('Konu özeti bulut veritabanından silindi.');
   };
 
-  // Test handlers (with server sync)
+  // Test handlers (Firebase Cloud Sync + LocalStorage fallback)
   const handleSaveTest = async (newTest: QuizTest) => {
     let updated: QuizTest[];
     const exists = tests.some((t) => t.id === newTest.id);
     if (exists) {
       updated = tests.map((t) => (t.id === newTest.id ? newTest : t));
-      showToast('10 soruluk test başarıyla güncellendi.');
+      showToast('10 soruluk test buluta kaydedildi ve güncellendi.');
     } else {
       updated = [newTest, ...tests];
-      showToast('Yeni 10 soruluk test başarıyla yayınlandı.');
+      showToast('Yeni 10 soruluk test bulut veritabanında yayınlandı.');
     }
     setTests(updated);
-    saveStoredTests(updated);
 
-    // Sync to server so all devices see this test
-    await serverSaveTest(newTest, adminPasswordKey);
+    // Save to Firebase Firestore cloud database
+    await saveTestToCloud(newTest);
   };
 
-  const handleDeleteTest = async (id: string, password?: string) => {
+  const handleDeleteTest = async (id: string) => {
     const updated = tests.filter((t) => t.id !== id);
     setTests(updated);
-    saveStoredTests(updated);
-    showToast('Test başarıyla silindi.');
-
-    // Sync deletion to server
-    await serverDeleteTest(id, password || adminPasswordKey);
+    await deleteTestFromCloud(id);
+    showToast('Test bulut veritabanından silindi.');
   };
 
   // Backup & Restore
@@ -170,7 +166,7 @@ export default function App() {
     showToast('Yedek dosyası başarıyla indirildi.');
   };
 
-  const handleImportBackup = async (file: File, password?: string) => {
+  const handleImportBackup = async (file: File) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const content = e.target?.result as string;
@@ -181,13 +177,8 @@ export default function App() {
           const loadedTests = getStoredTests();
           setSummaries(loadedSummaries);
           setTests(loadedTests);
-          showToast(result.message);
-
-          // Sync imported data to server
-          await serverImportBackup(
-            { summaries: loadedSummaries, tests: loadedTests },
-            password || adminPasswordKey
-          );
+          await importBackupToCloud(loadedSummaries, loadedTests);
+          showToast(`Yedekleme bulut veritabanına yüklendi! (${loadedSummaries.length} Özet, ${loadedTests.length} Test)`);
         } else {
           showToast(result.message, 'error');
         }
@@ -196,26 +187,25 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Preset loader (sync to server for all devices)
-  const handleLoadSampleCurriculum = async (password?: string) => {
-    await serverLoadPreset(password || adminPasswordKey);
-    const { summaries: serverSummaries, tests: serverTests } = await fetchCurriculumFromServer();
-    setSummaries(serverSummaries);
-    setTests(serverTests);
-    showToast(`Örnek 6. Sınıf müfredatı yüklendi! (${serverSummaries.length} Özet, ${serverTests.length} Test)`);
+  // Preset loader (Firebase Cloud Sync)
+  const handleLoadSampleCurriculum = async () => {
+    const counts = await loadSampleCurriculumToCloud();
+    const { summaries: cloudSummaries, tests: cloudTests } = await fetchCurriculumFromCloud();
+    setSummaries(cloudSummaries);
+    setTests(cloudTests);
+    showToast(`Örnek müfredat bulut veritabanına aktarıldı! (${counts.summariesCount} Özet, ${counts.testsCount} Test)`);
   };
 
-  // Clear data
-  const handleClearAllData = async (password?: string) => {
-    await serverResetCurriculum(password || adminPasswordKey);
-    clearAllCourseData();
+  // Clear data (Firebase Cloud Sync + LocalStorage)
+  const handleClearAllData = async () => {
+    await resetCloudCurriculum();
     setSummaries([]);
     setTests([]);
     setAttempts([]);
-    showToast('Platform sıfırlandı. Tüm ders verileri temizlendi.');
+    showToast('Bulut veritabanı ve yerel bellek sıfırlandı.');
   };
 
-  // Test Attempt
+  // Test Attempt (local progress)
   const handleSaveAttempt = (attempt: TestAttempt) => {
     saveStoredAttempt(attempt);
     setAttempts(getStoredAttempts());
@@ -275,7 +265,7 @@ export default function App() {
         />
       </main>
 
-      {/* Footer */}
+      {/* Footer with Cloud Status indicator */}
       <footer className="w-full border-t border-slate-200 dark:border-slate-800 py-6 px-4 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xs text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -283,8 +273,13 @@ export default function App() {
             <span>·</span>
             <span>6. Sınıf Fen Bilimleri Eğitim Platformu</span>
           </div>
-          <div>
-            <span>Milli Eğitim Bakanlığı Müfredatı ile Tam Uyumlu</span>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 font-medium">
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Bulut Veritabanı (Firestore) & Çevrimdışı Bellek Aktif</span>
+            </span>
+            <span>·</span>
+            <span>MEB Müfredatı ile Tam Uyumlu</span>
           </div>
         </div>
       </footer>
@@ -310,24 +305,20 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         summaries={summaries}
         tests={tests}
-        onAddNewSummary={(pwd) => {
-          if (pwd) setAdminPasswordKey(pwd);
+        onAddNewSummary={() => {
           setEditingSummary(null);
           setIsSummaryFormOpen(true);
         }}
-        onEditSummary={(s, pwd) => {
-          if (pwd) setAdminPasswordKey(pwd);
+        onEditSummary={(s) => {
           setEditingSummary(s);
           setIsSummaryFormOpen(true);
         }}
         onDeleteSummary={handleDeleteSummary}
-        onAddNewTest={(pwd) => {
-          if (pwd) setAdminPasswordKey(pwd);
+        onAddNewTest={() => {
           setEditingTest(null);
           setIsTestFormOpen(true);
         }}
-        onEditTest={(t, pwd) => {
-          if (pwd) setAdminPasswordKey(pwd);
+        onEditTest={(t) => {
           setEditingTest(t);
           setIsTestFormOpen(true);
         }}

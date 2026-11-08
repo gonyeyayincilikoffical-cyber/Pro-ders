@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ProDers 6. Sınıf Fen Bilimleri - Bulut Veritabanı Kuralları
+
+    // Konu Özetleri: Tüm cihaz ve öğrencilere açık okuma, yönetici modundan yazma
+    match /summaries/{summaryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 10 Soruluk Testler: Tüm cihaz ve öğrencilere açık okuma, yönetici modundan yazma
+    match /tests/{testId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

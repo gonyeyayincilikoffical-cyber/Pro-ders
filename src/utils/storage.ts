@@ -1,5 +1,14 @@
 import { SubjectSummary, QuizTest, TestAttempt, AppBackupData } from '../types';
 import { SAMPLE_6TH_GRADE_SUMMARIES, SAMPLE_6TH_GRADE_TESTS } from './sampleData';
+import { db } from '../firebase';
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  writeBatch 
+} from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   SUMMARIES: 'proders_summaries_v1',
@@ -8,7 +17,7 @@ const STORAGE_KEYS = {
   THEME: 'proders_theme_v1',
 };
 
-// Safe localStorage wrapper
+// Safe localStorage fallback wrapper
 function isLocalStorageAvailable(): boolean {
   try {
     return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -18,7 +27,7 @@ function isLocalStorageAvailable(): boolean {
 }
 
 /**
- * Loads published subject summaries from LocalStorage cache.
+ * Loads published subject summaries from LocalStorage (offline fallback).
  */
 export function getStoredSummaries(): SubjectSummary[] {
   if (!isLocalStorageAvailable()) return [];
@@ -28,7 +37,7 @@ export function getStoredSummaries(): SubjectSummary[] {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    console.error('Özetler yüklenirken hata oluştu:', err);
+    console.error('Yerel özetler yüklenirken hata oluştu:', err);
     return [];
   }
 }
@@ -39,13 +48,13 @@ export function saveStoredSummaries(summaries: SubjectSummary[]): boolean {
     localStorage.setItem(STORAGE_KEYS.SUMMARIES, JSON.stringify(summaries));
     return true;
   } catch (err) {
-    console.error('Özetler kaydedilirken hata oluştu:', err);
+    console.error('Özetler yerel belleğe kaydedilirken hata oluştu:', err);
     return false;
   }
 }
 
 /**
- * Loads published 10-question tests from LocalStorage cache.
+ * Loads published 10-question tests from LocalStorage (offline fallback).
  */
 export function getStoredTests(): QuizTest[] {
   if (!isLocalStorageAvailable()) return [];
@@ -55,7 +64,7 @@ export function getStoredTests(): QuizTest[] {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    console.error('Testler yüklenirken hata oluştu:', err);
+    console.error('Yerel testler yüklenirken hata oluştu:', err);
     return [];
   }
 }
@@ -66,7 +75,7 @@ export function saveStoredTests(tests: QuizTest[]): boolean {
     localStorage.setItem(STORAGE_KEYS.TESTS, JSON.stringify(tests));
     return true;
   } catch (err) {
-    console.error('Testler kaydedilirken hata oluştu:', err);
+    console.error('Testler yerel belleğe kaydedilirken hata oluştu:', err);
     return false;
   }
 }
@@ -87,7 +96,7 @@ export function saveStoredAttempt(attempt: TestAttempt): void {
   if (!isLocalStorageAvailable()) return;
   try {
     const current = getStoredAttempts();
-    const updated = [attempt, ...current].slice(0, 100); // keep last 100 attempts
+    const updated = [attempt, ...current].slice(0, 100);
     localStorage.setItem(STORAGE_KEYS.ATTEMPTS, JSON.stringify(updated));
   } catch (err) {
     console.error('Sonuç kaydedilirken hata oluştu:', err);
@@ -136,15 +145,6 @@ export function importBackupJSON(jsonStr: string): ImportResult {
   }
 }
 
-export function loadSampleCurriculum(): { summariesCount: number; testsCount: number } {
-  saveStoredSummaries(SAMPLE_6TH_GRADE_SUMMARIES);
-  saveStoredTests(SAMPLE_6TH_GRADE_TESTS);
-  return {
-    summariesCount: SAMPLE_6TH_GRADE_SUMMARIES.length,
-    testsCount: SAMPLE_6TH_GRADE_TESTS.length,
-  };
-}
-
 export function clearAllCourseData(): void {
   if (!isLocalStorageAvailable()) return;
   localStorage.removeItem(STORAGE_KEYS.SUMMARIES);
@@ -152,31 +152,42 @@ export function clearAllCourseData(): void {
   localStorage.removeItem(STORAGE_KEYS.ATTEMPTS);
 }
 
-// -------------------------------------------------------------
-// FULL-STACK SERVER API (Multi-device synchronization)
-// -------------------------------------------------------------
+// --------------------------------------------------------------------------
+// CLOUD DATABASE SYNC (Firebase Firestore + LocalStorage Fallback)
+// --------------------------------------------------------------------------
 
 /**
- * Fetches the global curriculum from the server.
- * This guarantees that content created from ANY device is instantly available across ALL devices.
+ * Loads the curriculum from Firebase Firestore.
+ * Ensures any unit summary or test added on any device is instantly visible everywhere.
+ * Falls back to LocalStorage if offline.
  */
-export async function fetchCurriculumFromServer(): Promise<{ summaries: SubjectSummary[]; tests: QuizTest[] }> {
+export async function fetchCurriculumFromCloud(): Promise<{ summaries: SubjectSummary[]; tests: QuizTest[] }> {
   try {
-    const res = await fetch('/api/curriculum');
-    if (!res.ok) {
-      throw new Error(`Sunucu hatası: ${res.status}`);
-    }
-    const data = await res.json();
-    const summaries = Array.isArray(data.summaries) ? data.summaries : [];
-    const tests = Array.isArray(data.tests) ? data.tests : [];
+    // 1. Fetch summaries from Firestore
+    const summariesSnapshot = await getDocs(collection(db, 'summaries'));
+    const summaries: SubjectSummary[] = [];
+    summariesSnapshot.forEach((docSnap) => {
+      summaries.push(docSnap.data() as SubjectSummary);
+    });
 
-    // Cache locally
+    // 2. Fetch tests from Firestore
+    const testsSnapshot = await getDocs(collection(db, 'tests'));
+    const tests: QuizTest[] = [];
+    testsSnapshot.forEach((docSnap) => {
+      tests.push(docSnap.data() as QuizTest);
+    });
+
+    // Sort by unitNumber ascending
+    summaries.sort((a, b) => a.unitNumber - b.unitNumber);
+    tests.sort((a, b) => a.unitNumber - b.unitNumber);
+
+    // Update LocalStorage offline fallback cache
     saveStoredSummaries(summaries);
     saveStoredTests(tests);
 
     return { summaries, tests };
   } catch (err) {
-    console.warn('Sunucu senkronizasyonu yapılamadı, yerel önbellek kullanılıyor:', err);
+    console.warn('Bulut veritabanına bağlanılamadı, yerel yedek bellek (LocalStorage) kullanılıyor:', err);
     return {
       summaries: getStoredSummaries(),
       tests: getStoredTests(),
@@ -184,113 +195,156 @@ export async function fetchCurriculumFromServer(): Promise<{ summaries: SubjectS
   }
 }
 
-export async function serverSaveSummary(summary: SubjectSummary, adminPassword?: string): Promise<boolean> {
+/**
+ * Saves a SubjectSummary to Firebase Firestore and updates LocalStorage.
+ */
+export async function saveSummaryToCloud(summary: SubjectSummary): Promise<boolean> {
+  // Always update LocalStorage immediately
+  const localSummaries = getStoredSummaries();
+  const existingIdx = localSummaries.findIndex((s) => s.id === summary.id);
+  let updatedLocal: SubjectSummary[];
+  if (existingIdx >= 0) {
+    updatedLocal = localSummaries.map((s) => (s.id === summary.id ? summary : s));
+  } else {
+    updatedLocal = [summary, ...localSummaries];
+  }
+  saveStoredSummaries(updatedLocal);
+
   try {
-    const res = await fetch('/api/summaries', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword || '',
-      },
-      body: JSON.stringify(summary),
-    });
-    return res.ok;
+    await setDoc(doc(db, 'summaries', summary.id), summary);
+    return true;
   } catch (err) {
-    console.error('Özet sunucuya kaydedilemedi:', err);
+    console.error('Özet bulut veritabanına kaydedilirken hata oluştu (yerel belleğe kaydedildi):', err);
     return false;
   }
 }
 
-export async function serverDeleteSummary(id: string, adminPassword?: string): Promise<boolean> {
+/**
+ * Deletes a SubjectSummary from Firebase Firestore and updates LocalStorage.
+ */
+export async function deleteSummaryFromCloud(id: string): Promise<boolean> {
+  const localSummaries = getStoredSummaries().filter((s) => s.id !== id);
+  saveStoredSummaries(localSummaries);
+
   try {
-    const res = await fetch(`/api/summaries/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'X-Admin-Password': adminPassword || '',
-      },
-    });
-    return res.ok;
+    await deleteDoc(doc(db, 'summaries', id));
+    return true;
   } catch (err) {
-    console.error('Özet sunucudan silinemedi:', err);
+    console.error('Özet bulut veritabanından silinirken hata oluştu:', err);
     return false;
   }
 }
 
-export async function serverSaveTest(test: QuizTest, adminPassword?: string): Promise<boolean> {
+/**
+ * Saves a QuizTest to Firebase Firestore and updates LocalStorage.
+ */
+export async function saveTestToCloud(test: QuizTest): Promise<boolean> {
+  const localTests = getStoredTests();
+  const existingIdx = localTests.findIndex((t) => t.id === test.id);
+  let updatedLocal: QuizTest[];
+  if (existingIdx >= 0) {
+    updatedLocal = localTests.map((t) => (t.id === test.id ? test : t));
+  } else {
+    updatedLocal = [test, ...localTests];
+  }
+  saveStoredTests(updatedLocal);
+
   try {
-    const res = await fetch('/api/tests', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword || '',
-      },
-      body: JSON.stringify(test),
-    });
-    return res.ok;
+    await setDoc(doc(db, 'tests', test.id), test);
+    return true;
   } catch (err) {
-    console.error('Test sunucuya kaydedilemedi:', err);
+    console.error('Test bulut veritabanına kaydedilirken hata oluştu (yerel belleğe kaydedildi):', err);
     return false;
   }
 }
 
-export async function serverDeleteTest(id: string, adminPassword?: string): Promise<boolean> {
+/**
+ * Deletes a QuizTest from Firebase Firestore and updates LocalStorage.
+ */
+export async function deleteTestFromCloud(id: string): Promise<boolean> {
+  const localTests = getStoredTests().filter((t) => t.id !== id);
+  saveStoredTests(localTests);
+
   try {
-    const res = await fetch(`/api/tests/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'X-Admin-Password': adminPassword || '',
-      },
-    });
-    return res.ok;
+    await deleteDoc(doc(db, 'tests', id));
+    return true;
   } catch (err) {
-    console.error('Test sunucudan silinemedi:', err);
+    console.error('Test bulut veritabanından silinirken hata oluştu:', err);
     return false;
   }
 }
 
-export async function serverLoadPreset(adminPassword?: string): Promise<boolean> {
+/**
+ * Loads authentic sample MEB curriculum preset into Firestore and LocalStorage.
+ */
+export async function loadSampleCurriculumToCloud(): Promise<{ summariesCount: number; testsCount: number }> {
+  // Save to local storage first
+  saveStoredSummaries(SAMPLE_6TH_GRADE_SUMMARIES);
+  saveStoredTests(SAMPLE_6TH_GRADE_TESTS);
+
   try {
-    const res = await fetch('/api/curriculum/preset', {
-      method: 'POST',
-      headers: {
-        'X-Admin-Password': adminPassword || '',
-      },
-    });
-    return res.ok;
+    const batch = writeBatch(db);
+    for (const summary of SAMPLE_6TH_GRADE_SUMMARIES) {
+      batch.set(doc(db, 'summaries', summary.id), summary);
+    }
+    for (const test of SAMPLE_6TH_GRADE_TESTS) {
+      batch.set(doc(db, 'tests', test.id), test);
+    }
+    await batch.commit();
   } catch (err) {
-    console.error('Örnek müfredat sunucuya yüklenemedi:', err);
+    console.error('Örnek müfredat buluta yüklenirken hata oluştu (yerel belleğe kaydedildi):', err);
+  }
+
+  return {
+    summariesCount: SAMPLE_6TH_GRADE_SUMMARIES.length,
+    testsCount: SAMPLE_6TH_GRADE_TESTS.length,
+  };
+}
+
+/**
+ * Uploads an imported JSON backup into Firebase Firestore and LocalStorage.
+ */
+export async function importBackupToCloud(summaries: SubjectSummary[], tests: QuizTest[]): Promise<boolean> {
+  saveStoredSummaries(summaries);
+  saveStoredTests(tests);
+
+  try {
+    const batch = writeBatch(db);
+    for (const s of summaries) {
+      batch.set(doc(db, 'summaries', s.id), s);
+    }
+    for (const t of tests) {
+      batch.set(doc(db, 'tests', t.id), t);
+    }
+    await batch.commit();
+    return true;
+  } catch (err) {
+    console.error('Yedek veriler buluta aktarılırken hata oluştu:', err);
     return false;
   }
 }
 
-export async function serverImportBackup(data: { summaries: any[]; tests: any[] }, adminPassword?: string): Promise<boolean> {
-  try {
-    const res = await fetch('/api/curriculum/import', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Password': adminPassword || '',
-      },
-      body: JSON.stringify(data),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error('Yedek sunucuya aktarılamadı:', err);
-    return false;
-  }
-}
+/**
+ * Clears all data from both Firebase Firestore and LocalStorage.
+ */
+export async function resetCloudCurriculum(): Promise<boolean> {
+  clearAllCourseData();
 
-export async function serverResetCurriculum(adminPassword?: string): Promise<boolean> {
   try {
-    const res = await fetch('/api/curriculum/reset', {
-      method: 'POST',
-      headers: {
-        'X-Admin-Password': adminPassword || '',
-      },
+    const summariesSnapshot = await getDocs(collection(db, 'summaries'));
+    const testsSnapshot = await getDocs(collection(db, 'tests'));
+
+    const batch = writeBatch(db);
+    summariesSnapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
     });
-    return res.ok;
+    testsSnapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+    return true;
   } catch (err) {
-    console.error('Sunucu verisi sıfırlanamadı:', err);
+    console.error('Bulut veritabanı sıfırlanırken hata oluştu:', err);
     return false;
   }
 }

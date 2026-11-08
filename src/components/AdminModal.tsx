@@ -639,10 +639,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-center">
-                      <div className="text-2xl font-black text-purple-600 dark:text-purple-400 tabular-nums font-heading">
-                        Aktif
+                      <div className="text-xl font-black text-purple-600 dark:text-purple-400 tabular-nums font-heading">
+                        Bulut (Aktif)
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">LocalStorage</div>
+                      <div className="text-xs text-slate-500 mt-1">Firebase Firestore</div>
                     </div>
                   </div>
 
@@ -650,8 +650,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <div className="font-semibold text-slate-900 dark:text-white">Teknik Özellikler:</div>
                     <ul className="list-disc list-inside space-y-1">
                       <li>İstemci: React 19 + Tailwind CSS (Karanlık/Aydınlık Tema)</li>
-                      <li>Veri Depolama: İstemci Tarafı LocalStorage (Çevrimdışı ve Anında Senkron)</li>
-                      <li>Güvenlik: Şifrelenmiş Admin Geçidi (3 Hatalı Girişte Kilitlenme)</li>
+                      <li>Bulut Veritabanı: Google Firebase Firestore (Tüm Cihazlar Arasında Canlı Eşzamanlama)</li>
+                      <li>Çevrimdışı Destek: İnternet kesintilerine karşı otomatik LocalStorage yedek belleği</li>
+                      <li>Güvenlik: Şifrelenmiş Admin Geçidi (3 Hatalı Girişte 60 Sn Kilitlenme)</li>
                       <li>Türkçe Dil Uyumu: %100 Türkçe Arayüz, Bildirimler ve Test İçerikleri</li>
                     </ul>
                   </div>

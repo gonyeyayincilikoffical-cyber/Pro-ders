@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "SubjectSummary": {
+      "title": "SubjectSummary",
+      "description": "6. Sınıf Fen Bilimleri ünite konu özeti",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Özet benzersiz kimliği"
+        },
+        "unitNumber": {
+          "type": "number",
+          "description": "Ünite numarası (1-10)"
+        },
+        "unitTitle": {
+          "type": "string",
+          "description": "Ünite başlığı"
+        },
+        "topicTitle": {
+          "type": "string",
+          "description": "Konu başlığı"
+        },
+        "grade": {
+          "type": "string",
+          "description": "Sınıf seviyesi (6. Sınıf)"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Ders adı (Fen Bilimleri)"
+        },
+        "mebOutcomes": {
+          "type": "array",
+          "description": "MEB kazanımları listesi"
+        },
+        "summaryContent": {
+          "type": "string",
+          "description": "Özet metni"
+        },
+        "keyTerms": {
+          "type": "array",
+          "description": "Önemli kavram ve terimler"
+        },
+        "criticalPoints": {
+          "type": "array",
+          "description": "Dikkat edilecek püf noktalar"
+        },
+        "estimatedReadMinutes": {
+          "type": "number",
+          "description": "Tahmini okuma süresi (dakika)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Oluşturulma zamanı"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Güncellenme zamanı"
+        }
+      },
+      "required": ["id", "unitNumber", "unitTitle", "topicTitle", "summaryContent"]
+    },
+    "QuizTest": {
+      "title": "QuizTest",
+      "description": "10 soruluk interaktif test",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Test benzersiz kimliği"
+        },
+        "unitNumber": {
+          "type": "number",
+          "description": "Ünite numarası"
+        },
+        "unitTitle": {
+          "type": "string",
+          "description": "Ünite başlığı"
+        },
+        "title": {
+          "type": "string",
+          "description": "Test başlığı"
+        },
+        "description": {
+          "type": "string",
+          "description": "Test açıklaması"
+        },
+        "grade": {
+          "type": "string",
+          "description": "Sınıf seviyesi"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Ders adı"
+        },
+        "questions": {
+          "type": "array",
+          "description": "10 soruluk soru listesi"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Oluşturulma zamanı"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Güncellenme zamanı"
+        }
+      },
+      "required": ["id", "unitNumber", "unitTitle", "title", "questions"]
+    }
+  },
+  "firestore": {
+    "/summaries/{summaryId}": {
+      "schema": "SubjectSummary",
+      "description": "Tüm öğrencilerin ve cihazların okuyabileceği 6. sınıf konu özetleri"
+    },
+    "/tests/{testId}": {
+      "schema": "QuizTest",
+      "description": "Tüm öğrencilerin ve cihazların çözebileceği 10 soruluk testler"
+    }
+  }
+}
