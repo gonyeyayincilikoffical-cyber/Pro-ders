@@ -90,7 +90,7 @@ test('storage: importBackupJSON handles bad JSON and valid structures', () => {
   const badResult = importBackupJSON('not valid json');
   assert.equal(badResult.success, false);
 
-  const emptyValidResult = importBackupJSON(JSON.stringify({ summaries: [], tests: [] }));
+  const emptyValidResult = importBackupJSON(JSON.stringify({ summaries: [], tests: [], decks: [] }));
   assert.equal(emptyValidResult.success, true);
-  assert.deepEqual(emptyValidResult.counts, { summaries: 0, tests: 0 });
+  assert.deepEqual(emptyValidResult.counts, { summaries: 0, tests: 0, decks: 0 });
 });

@@ -14,5 +14,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Etkileşimli Eğitim Slaytları: Tüm cihaz ve öğrencilere açık okuma, yönetici modundan yazma
+    match /decks/{deckId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

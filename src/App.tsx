@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { SubjectSummary, QuizTest, TestAttempt } from './types';
+import { SubjectSummary, QuizTest, TestAttempt, InteractiveDeck } from './types';
 import { 
   getStoredSummaries, 
   getStoredTests, 
+  getStoredDecks,
   getStoredAttempts, 
   saveStoredAttempt,
   exportBackupJSON,
@@ -12,6 +13,8 @@ import {
   deleteSummaryFromCloud,
   saveTestToCloud,
   deleteTestFromCloud,
+  saveDeckToCloud,
+  deleteDeckFromCloud,
   loadSampleCurriculumToCloud,
   importBackupToCloud,
   resetCloudCurriculum
@@ -20,6 +23,8 @@ import { Header } from './components/Header';
 import { BentoGrid } from './components/BentoGrid';
 import { SummaryReaderModal } from './components/SummaryReaderModal';
 import { TestPlayerModal } from './components/TestPlayerModal';
+import { InteractiveSlidePlayerModal } from './components/InteractiveSlidePlayerModal';
+import { SlideStudioModal } from './components/SlideStudioModal';
 import { AdminModal } from './components/AdminModal';
 import { SummaryFormModal } from './components/SummaryFormModal';
 import { TestFormModal } from './components/TestFormModal';
@@ -53,21 +58,25 @@ export default function App() {
   // Course content states (Empty by default on initial launch)
   const [summaries, setSummaries] = useState<SubjectSummary[]>([]);
   const [tests, setTests] = useState<QuizTest[]>([]);
+  const [decks, setDecks] = useState<InteractiveDeck[]>([]);
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
 
   // Navigation / filtering state
-  const [activeTab, setActiveTab] = useState<'all' | 'summaries' | 'tests'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'summaries' | 'tests' | 'decks'>('all');
 
   // Modal visibility states
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [activeSummaryForReading, setActiveSummaryForReading] = useState<SubjectSummary | null>(null);
   const [activeTestForPlaying, setActiveTestForPlaying] = useState<QuizTest | null>(null);
+  const [activeDeckForPlaying, setActiveDeckForPlaying] = useState<InteractiveDeck | null>(null);
 
   // Form modal states
   const [isSummaryFormOpen, setIsSummaryFormOpen] = useState(false);
   const [editingSummary, setEditingSummary] = useState<SubjectSummary | null>(null);
   const [isTestFormOpen, setIsTestFormOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<QuizTest | null>(null);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
+  const [editingDeck, setEditingDeck] = useState<InteractiveDeck | null>(null);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -123,12 +132,14 @@ export default function App() {
   useEffect(() => {
     setSummaries(getStoredSummaries());
     setTests(getStoredTests());
+    setDecks(getStoredDecks());
     setAttempts(getStoredAttempts());
 
     fetchCurriculumFromCloud()
-      .then(({ summaries: cloudSummaries, tests: cloudTests }) => {
+      .then(({ summaries: cloudSummaries, tests: cloudTests, decks: cloudDecks }) => {
         setSummaries(cloudSummaries);
         setTests(cloudTests);
+        if (cloudDecks) setDecks(cloudDecks);
       })
       .catch((err) => {
         console.warn('Bulut veritabanı senkronizasyon uyarısı:', err);
@@ -185,6 +196,31 @@ export default function App() {
     showToast('Test bulut veritabanından silindi.');
   };
 
+  // Interactive Deck handlers (Firebase Cloud Sync + LocalStorage fallback)
+  const handleSaveDeck = async (newDeck: InteractiveDeck) => {
+    let updated: InteractiveDeck[];
+    const exists = decks.some((d) => d.id === newDeck.id);
+    if (exists) {
+      updated = decks.map((d) => (d.id === newDeck.id ? newDeck : d));
+      showToast('Eğitim slaytı buluta kaydedildi ve güncellendi.');
+    } else {
+      updated = [newDeck, ...decks];
+      showToast('Yeni eğitim slaytı bulut veritabanında yayınlandı.');
+    }
+    setDecks(updated);
+    setIsStudioOpen(false);
+    setEditingDeck(null);
+
+    await saveDeckToCloud(newDeck);
+  };
+
+  const handleDeleteDeck = async (id: string) => {
+    const updated = decks.filter((d) => d.id !== id);
+    setDecks(updated);
+    await deleteDeckFromCloud(id);
+    showToast('Eğitim slaytı silindi.');
+  };
+
   // Backup & Restore
   const handleExportBackup = () => {
     const jsonStr = exportBackupJSON();
@@ -207,10 +243,12 @@ export default function App() {
         if (result.success) {
           const loadedSummaries = getStoredSummaries();
           const loadedTests = getStoredTests();
+          const loadedDecks = getStoredDecks();
           setSummaries(loadedSummaries);
           setTests(loadedTests);
-          await importBackupToCloud(loadedSummaries, loadedTests);
-          showToast(`Yedekleme bulut veritabanına yüklendi! (${loadedSummaries.length} Özet, ${loadedTests.length} Test)`);
+          setDecks(loadedDecks);
+          await importBackupToCloud(loadedSummaries, loadedTests, loadedDecks);
+          showToast(`Yedekleme bulut veritabanına yüklendi! (${loadedSummaries.length} Özet, ${loadedTests.length} Test, ${loadedDecks.length} Slayt)`);
         } else {
           showToast(result.message, 'error');
         }
@@ -222,10 +260,11 @@ export default function App() {
   // Preset loader (Firebase Cloud Sync)
   const handleLoadSampleCurriculum = async () => {
     const counts = await loadSampleCurriculumToCloud();
-    const { summaries: cloudSummaries, tests: cloudTests } = await fetchCurriculumFromCloud();
+    const { summaries: cloudSummaries, tests: cloudTests, decks: cloudDecks } = await fetchCurriculumFromCloud();
     setSummaries(cloudSummaries);
     setTests(cloudTests);
-    showToast(`Örnek müfredat bulut veritabanına aktarıldı! (${counts.summariesCount} Özet, ${counts.testsCount} Test)`);
+    if (cloudDecks) setDecks(cloudDecks);
+    showToast(`Örnek müfredat bulut veritabanına aktarıldı! (${counts.summariesCount} Özet, ${counts.testsCount} Test, ${counts.decksCount} Slayt)`);
   };
 
   // Clear data (Firebase Cloud Sync + LocalStorage)
@@ -233,6 +272,7 @@ export default function App() {
     await resetCloudCurriculum();
     setSummaries([]);
     setTests([]);
+    setDecks([]);
     setAttempts([]);
     showToast('Bulut veritabanı ve yerel bellek sıfırlandı.');
   };
@@ -271,7 +311,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header - Strictly Student Mode with no Admin links */}
+      {/* Header - Strictly Student Mode with no Admin/Studio links */}
       <Header
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
@@ -280,6 +320,7 @@ export default function App() {
         onChangeTab={setActiveTab}
         summariesCount={summaries.length}
         testsCount={tests.length}
+        decksCount={decks.length}
       />
 
       {/* Main Content: Bento Grid */}
@@ -287,9 +328,11 @@ export default function App() {
         <BentoGrid
           summaries={summaries}
           tests={tests}
+          decks={decks}
           attempts={attempts}
           onSelectSummary={(s) => setActiveSummaryForReading(s)}
           onSelectTest={(t) => setActiveTestForPlaying(t)}
+          onSelectDeck={(d) => setActiveDeckForPlaying(d)}
           activeFilter={activeTab}
           onFilterChange={setActiveTab}
         />
@@ -329,12 +372,33 @@ export default function App() {
         onSaveAttempt={handleSaveAttempt}
       />
 
-      {/* 3. Ultra Secure Admin Control Modal: Only accessible via secret route "/adminpanelyonetici" */}
+      {/* 3. Interactive Slide Player Modal with AI Voice Narration */}
+      {activeDeckForPlaying && (
+        <InteractiveSlidePlayerModal
+          deck={activeDeckForPlaying}
+          onClose={() => setActiveDeckForPlaying(null)}
+        />
+      )}
+
+      {/* 4. Educational Slide Studio Modal (Interactive Content Builder & File Upload) */}
+      {isStudioOpen && (
+        <SlideStudioModal
+          initialDeck={editingDeck}
+          onClose={() => {
+            setIsStudioOpen(false);
+            setEditingDeck(null);
+          }}
+          onSave={handleSaveDeck}
+        />
+      )}
+
+      {/* 5. Ultra Secure Admin Control Modal: Only accessible via secret route "/adminpanelyonetici" */}
       <AdminModal
         isOpen={currentRoute === '/adminpanelyonetici'}
         onClose={navigateToStudent}
         summaries={summaries}
         tests={tests}
+        decks={decks}
         onAddNewSummary={() => {
           setEditingSummary(null);
           setIsSummaryFormOpen(true);
@@ -353,13 +417,22 @@ export default function App() {
           setIsTestFormOpen(true);
         }}
         onDeleteTest={handleDeleteTest}
+        onAddNewDeck={() => {
+          setEditingDeck(null);
+          setIsStudioOpen(true);
+        }}
+        onEditDeck={(d) => {
+          setEditingDeck(d);
+          setIsStudioOpen(true);
+        }}
+        onDeleteDeck={handleDeleteDeck}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
         onLoadSampleCurriculum={handleLoadSampleCurriculum}
         onClearAllData={handleClearAllData}
       />
 
-      {/* 4. Summary Form (Add/Edit) */}
+      {/* 6. Summary Form (Add/Edit) */}
       <SummaryFormModal
         isOpen={isSummaryFormOpen}
         onClose={() => {
@@ -370,7 +443,7 @@ export default function App() {
         initialData={editingSummary}
       />
 
-      {/* 5. 10-Question Test Form (Add/Edit) */}
+      {/* 7. 10-Question Test Form (Add/Edit) */}
       <TestFormModal
         isOpen={isTestFormOpen}
         onClose={() => {
@@ -381,7 +454,7 @@ export default function App() {
         initialData={editingTest}
       />
 
-      {/* 6. Student Progress / Stats Modal */}
+      {/* 8. Student Progress / Stats Modal */}
       <StatsModal
         isOpen={isStatsOpen}
         onClose={() => setIsStatsOpen(false)}

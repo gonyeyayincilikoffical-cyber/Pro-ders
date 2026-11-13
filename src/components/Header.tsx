@@ -1,14 +1,15 @@
 import React from 'react';
-import { Moon, Sun, BookOpen, CheckSquare, BarChart3, GraduationCap } from 'lucide-react';
+import { Moon, Sun, BookOpen, CheckSquare, BarChart3, GraduationCap, Layers } from 'lucide-react';
 
 interface HeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   onOpenStats: () => void;
-  activeTab: 'all' | 'summaries' | 'tests';
-  onChangeTab: (tab: 'all' | 'summaries' | 'tests') => void;
+  activeTab: 'all' | 'summaries' | 'tests' | 'decks';
+  onChangeTab: (tab: 'all' | 'summaries' | 'tests' | 'decks') => void;
   summariesCount: number;
   testsCount: number;
+  decksCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onChangeTab,
   summariesCount,
   testsCount,
+  decksCount,
 }) => {
   return (
     <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/90 dark:bg-slate-950/90 border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -82,6 +84,23 @@ export const Header: React.FC<HeaderProps> = ({
             {testsCount > 0 && (
               <span className="text-xs px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {testsCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => onChangeTab('decks')}
+            className={`transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 pb-1 border-b-2 ${
+              activeTab === 'decks'
+                ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-semibold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Etkileşimli Slaytlar</span>
+            {decksCount > 0 && (
+              <span className="text-xs px-1.5 py-0.2 rounded-full bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-bold">
+                {decksCount}
               </span>
             )}
           </button>

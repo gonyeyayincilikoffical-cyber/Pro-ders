@@ -1,5 +1,5 @@
-import { SubjectSummary, QuizTest, TestAttempt, AppBackupData } from '../types';
-import { SAMPLE_6TH_GRADE_SUMMARIES, SAMPLE_6TH_GRADE_TESTS } from './sampleData';
+import { SubjectSummary, QuizTest, TestAttempt, AppBackupData, InteractiveDeck } from '../types';
+import { SAMPLE_6TH_GRADE_SUMMARIES, SAMPLE_6TH_GRADE_TESTS, SAMPLE_6TH_GRADE_DECKS } from './sampleData';
 import { db } from '../firebase';
 import { 
   collection, 
@@ -13,6 +13,7 @@ import {
 const STORAGE_KEYS = {
   SUMMARIES: 'proders_summaries_v1',
   TESTS: 'proders_tests_v1',
+  DECKS: 'proders_decks_v1',
   ATTEMPTS: 'proders_attempts_v1',
   THEME: 'proders_theme_v1',
 };
@@ -80,6 +81,33 @@ export function saveStoredTests(tests: QuizTest[]): boolean {
   }
 }
 
+/**
+ * Loads published interactive slide decks from LocalStorage (offline fallback).
+ */
+export function getStoredDecks(): InteractiveDeck[] {
+  if (!isLocalStorageAvailable()) return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DECKS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('Yerel slaytlar yüklenirken hata oluştu:', err);
+    return [];
+  }
+}
+
+export function saveStoredDecks(decks: InteractiveDeck[]): boolean {
+  if (!isLocalStorageAvailable()) return false;
+  try {
+    localStorage.setItem(STORAGE_KEYS.DECKS, JSON.stringify(decks));
+    return true;
+  } catch (err) {
+    console.error('Slaytlar yerel belleğe kaydedilirken hata oluştu:', err);
+    return false;
+  }
+}
+
 export function getStoredAttempts(): TestAttempt[] {
   if (!isLocalStorageAvailable()) return [];
   try {
@@ -109,6 +137,7 @@ export function exportBackupJSON(): string {
     exportDate: new Date().toISOString(),
     summaries: getStoredSummaries(),
     tests: getStoredTests(),
+    decks: getStoredDecks(),
   };
   return JSON.stringify(data, null, 2);
 }
@@ -116,7 +145,7 @@ export function exportBackupJSON(): string {
 export interface ImportResult {
   success: boolean;
   message: string;
-  counts?: { summaries: number; tests: number };
+  counts?: { summaries: number; tests: number; decks?: number };
 }
 
 export function importBackupJSON(jsonStr: string): ImportResult {
@@ -128,14 +157,16 @@ export function importBackupJSON(jsonStr: string): ImportResult {
 
     const summaries = Array.isArray(parsed.summaries) ? parsed.summaries : [];
     const tests = Array.isArray(parsed.tests) ? parsed.tests : [];
+    const decks = Array.isArray(parsed.decks) ? parsed.decks : [];
 
     saveStoredSummaries(summaries);
     saveStoredTests(tests);
+    saveStoredDecks(decks);
 
     return {
       success: true,
-      message: `Yedekleme başarıyla yüklendi! (${summaries.length} konu özeti, ${tests.length} test)`,
-      counts: { summaries: summaries.length, tests: tests.length },
+      message: `Yedekleme başarıyla yüklendi! (${summaries.length} konu özeti, ${tests.length} test, ${decks.length} etkileşimli slayt)`,
+      counts: { summaries: summaries.length, tests: tests.length, decks: decks.length },
     };
   } catch (err) {
     return {
@@ -149,6 +180,7 @@ export function clearAllCourseData(): void {
   if (!isLocalStorageAvailable()) return;
   localStorage.removeItem(STORAGE_KEYS.SUMMARIES);
   localStorage.removeItem(STORAGE_KEYS.TESTS);
+  localStorage.removeItem(STORAGE_KEYS.DECKS);
   localStorage.removeItem(STORAGE_KEYS.ATTEMPTS);
 }
 
@@ -158,10 +190,14 @@ export function clearAllCourseData(): void {
 
 /**
  * Loads the curriculum from Firebase Firestore.
- * Ensures any unit summary or test added on any device is instantly visible everywhere.
+ * Ensures any unit summary, test, or interactive slide deck added on any device is instantly visible everywhere.
  * Falls back to LocalStorage if offline.
  */
-export async function fetchCurriculumFromCloud(): Promise<{ summaries: SubjectSummary[]; tests: QuizTest[] }> {
+export async function fetchCurriculumFromCloud(): Promise<{ 
+  summaries: SubjectSummary[]; 
+  tests: QuizTest[];
+  decks: InteractiveDeck[];
+}> {
   try {
     // 1. Fetch summaries from Firestore
     const summariesSnapshot = await getDocs(collection(db, 'summaries'));
@@ -177,20 +213,30 @@ export async function fetchCurriculumFromCloud(): Promise<{ summaries: SubjectSu
       tests.push(docSnap.data() as QuizTest);
     });
 
+    // 3. Fetch decks from Firestore
+    const decksSnapshot = await getDocs(collection(db, 'decks'));
+    const decks: InteractiveDeck[] = [];
+    decksSnapshot.forEach((docSnap) => {
+      decks.push(docSnap.data() as InteractiveDeck);
+    });
+
     // Sort by unitNumber ascending
     summaries.sort((a, b) => a.unitNumber - b.unitNumber);
     tests.sort((a, b) => a.unitNumber - b.unitNumber);
+    decks.sort((a, b) => a.unitNumber - b.unitNumber);
 
     // Update LocalStorage offline fallback cache
     saveStoredSummaries(summaries);
     saveStoredTests(tests);
+    saveStoredDecks(decks);
 
-    return { summaries, tests };
+    return { summaries, tests, decks };
   } catch (err) {
     console.warn('Bulut veritabanına bağlanılamadı, yerel yedek bellek (LocalStorage) kullanılıyor:', err);
     return {
       summaries: getStoredSummaries(),
       tests: getStoredTests(),
+      decks: getStoredDecks(),
     };
   }
 }
@@ -275,12 +321,52 @@ export async function deleteTestFromCloud(id: string): Promise<boolean> {
 }
 
 /**
+ * Saves an InteractiveDeck to Firebase Firestore and updates LocalStorage.
+ */
+export async function saveDeckToCloud(deck: InteractiveDeck): Promise<boolean> {
+  const localDecks = getStoredDecks();
+  const existingIdx = localDecks.findIndex((d) => d.id === deck.id);
+  let updatedLocal: InteractiveDeck[];
+  if (existingIdx >= 0) {
+    updatedLocal = localDecks.map((d) => (d.id === deck.id ? deck : d));
+  } else {
+    updatedLocal = [deck, ...localDecks];
+  }
+  saveStoredDecks(updatedLocal);
+
+  try {
+    await setDoc(doc(db, 'decks', deck.id), deck);
+    return true;
+  } catch (err) {
+    console.error('Slayt sunumu bulut veritabanına kaydedilirken hata oluştu:', err);
+    return false;
+  }
+}
+
+/**
+ * Deletes an InteractiveDeck from Firebase Firestore and updates LocalStorage.
+ */
+export async function deleteDeckFromCloud(id: string): Promise<boolean> {
+  const localDecks = getStoredDecks().filter((d) => d.id !== id);
+  saveStoredDecks(localDecks);
+
+  try {
+    await deleteDoc(doc(db, 'decks', id));
+    return true;
+  } catch (err) {
+    console.error('Slayt sunumu bulut veritabanından silinirken hata oluştu:', err);
+    return false;
+  }
+}
+
+/**
  * Loads authentic sample MEB curriculum preset into Firestore and LocalStorage.
  */
-export async function loadSampleCurriculumToCloud(): Promise<{ summariesCount: number; testsCount: number }> {
+export async function loadSampleCurriculumToCloud(): Promise<{ summariesCount: number; testsCount: number; decksCount: number }> {
   // Save to local storage first
   saveStoredSummaries(SAMPLE_6TH_GRADE_SUMMARIES);
   saveStoredTests(SAMPLE_6TH_GRADE_TESTS);
+  saveStoredDecks(SAMPLE_6TH_GRADE_DECKS);
 
   try {
     const batch = writeBatch(db);
@@ -290,6 +376,9 @@ export async function loadSampleCurriculumToCloud(): Promise<{ summariesCount: n
     for (const test of SAMPLE_6TH_GRADE_TESTS) {
       batch.set(doc(db, 'tests', test.id), test);
     }
+    for (const deck of SAMPLE_6TH_GRADE_DECKS) {
+      batch.set(doc(db, 'decks', deck.id), deck);
+    }
     await batch.commit();
   } catch (err) {
     console.error('Örnek müfredat buluta yüklenirken hata oluştu (yerel belleğe kaydedildi):', err);
@@ -298,15 +387,21 @@ export async function loadSampleCurriculumToCloud(): Promise<{ summariesCount: n
   return {
     summariesCount: SAMPLE_6TH_GRADE_SUMMARIES.length,
     testsCount: SAMPLE_6TH_GRADE_TESTS.length,
+    decksCount: SAMPLE_6TH_GRADE_DECKS.length,
   };
 }
 
 /**
  * Uploads an imported JSON backup into Firebase Firestore and LocalStorage.
  */
-export async function importBackupToCloud(summaries: SubjectSummary[], tests: QuizTest[]): Promise<boolean> {
+export async function importBackupToCloud(
+  summaries: SubjectSummary[], 
+  tests: QuizTest[], 
+  decks: InteractiveDeck[] = []
+): Promise<boolean> {
   saveStoredSummaries(summaries);
   saveStoredTests(tests);
+  saveStoredDecks(decks);
 
   try {
     const batch = writeBatch(db);
@@ -315,6 +410,9 @@ export async function importBackupToCloud(summaries: SubjectSummary[], tests: Qu
     }
     for (const t of tests) {
       batch.set(doc(db, 'tests', t.id), t);
+    }
+    for (const d of decks) {
+      batch.set(doc(db, 'decks', d.id), d);
     }
     await batch.commit();
     return true;
@@ -333,12 +431,16 @@ export async function resetCloudCurriculum(): Promise<boolean> {
   try {
     const summariesSnapshot = await getDocs(collection(db, 'summaries'));
     const testsSnapshot = await getDocs(collection(db, 'tests'));
+    const decksSnapshot = await getDocs(collection(db, 'decks'));
 
     const batch = writeBatch(db);
     summariesSnapshot.forEach((docSnap) => {
       batch.delete(docSnap.ref);
     });
     testsSnapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    decksSnapshot.forEach((docSnap) => {
       batch.delete(docSnap.ref);
     });
     await batch.commit();

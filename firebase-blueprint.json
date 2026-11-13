@@ -107,6 +107,24 @@
         }
       },
       "required": ["id", "unitNumber", "unitTitle", "title", "questions"]
+    },
+    "InteractiveDeck": {
+      "title": "InteractiveDeck",
+      "description": "Etkileşimli eğitim slaydı sunumu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "unitNumber": { "type": "number" },
+        "unitTitle": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "grade": { "type": "string" },
+        "subject": { "type": "string" },
+        "slides": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "unitNumber", "unitTitle", "title", "slides"]
     }
   },
   "firestore": {
@@ -117,6 +135,10 @@
     "/tests/{testId}": {
       "schema": "QuizTest",
       "description": "Tüm öğrencilerin ve cihazların çözebileceği 10 soruluk testler"
+    },
+    "/decks/{deckId}": {
+      "schema": "InteractiveDeck",
+      "description": "Tüm öğrencilerin ve cihazların izleyebileceği etkileşimli eğitim slaytları"
     }
   }
 }

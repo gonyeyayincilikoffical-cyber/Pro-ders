@@ -1,4 +1,4 @@
-import { SubjectSummary, QuizTest } from '../types';
+import { SubjectSummary, QuizTest, InteractiveDeck } from '../types';
 
 export const SAMPLE_6TH_GRADE_SUMMARIES: SubjectSummary[] = [
   {
@@ -436,5 +436,202 @@ export const SAMPLE_6TH_GRADE_TESTS: QuizTest[] = [
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
+  }
+];
+
+export const SAMPLE_6TH_GRADE_DECKS: InteractiveDeck[] = [
+  {
+    id: 'slayt-1-gunes-sistemi',
+    unitNumber: 1,
+    unitTitle: '1. Ünite: Güneş Sistemi ve Tutulmalar',
+    title: 'Güneş Sistemi ve Gezegenler - Etkileşimli Eğitim Slaytı',
+    description: 'Sesli yapay zeka anlatımlı, görsel destekli ve ara kontrol sorularıyla donatılmış 6. sınıf Güneş Sistemi sunumu.',
+    grade: '6. Sınıf',
+    subject: 'Fen Bilimleri',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    slides: [
+      {
+        id: 's1-1',
+        order: 1,
+        title: 'Güneş Sistemine Hoş Geldiniz!',
+        content: 'Güneş sistemi; merkezindeki devasa Güneş ve onun çekim kuvveti etkisiyle yörüngesinde dolanan 8 gezegen, uydular, asteroitler ve gök taşlarından oluşur. Güneş, sistemin ana ısı ve ışık kaynağı olan orta büyüklükte bir yıldızdır.',
+        narrationScript: 'Merhaba sevgili öğrenciler! Bugün Güneş Sisteminin büyüleyici derinliklerine doğru bir keşif yolculuğuna çıkıyoruz. Merkezimizde devasa bir yıldız olan Güneş yer alıyor. Onun etrafında ise tam sekiz harika gezegen belirli yörüngelerde durmaksızın dolanmaktadır.',
+        bulletPoints: [
+          'Merkezde tek bir yıldız: Güneş',
+          '8 ana gezegen ve onlarca doğal uydu',
+          'Mars ile Jüpiter arasında devasa Asteroit Kuşağı'
+        ],
+        theme: 'space',
+        imageCaption: 'Güneş Sistemi Gezegen Yörüngeleri ve Gökyüzü Modeli'
+      },
+      {
+        id: 's1-2',
+        order: 2,
+        title: 'Karasal (İç) Gezegenler',
+        content: 'Güneş\'e en yakın 4 gezegene "Karasal Gezegenler" veya iç gezegenler denir. Bunlar sırasıyla Merkür, Venüs, Dünya ve Mars\'tır. Hepsi katı taş ve kayaç yüzeylere sahiptir ve halkaları kesinlikle yoktur.',
+        narrationScript: 'Şimdi Güneş\'e en yakın ilk dört gezegeni inceleyelim. Merkür, Venüs, Dünya ve Mars. Bu gezegenlerin ortak özelliği, ayak basabileceğiniz katı kayaç bir zemine ve yüksek yoğunluğa sahip olmalarıdır. Ve unutmayın, hiçbir karasal gezegenin etrafında halka bulunmaz.',
+        bulletPoints: [
+          'Sıralama: Merkür → Venüs → Dünya → Mars',
+          'Taş ve kayaç yapı, yüksek yoğunluk',
+          'Halka sistemleri kesinlikle yoktur',
+          'Merkür ve Venüs\'ün hiç uydusu yoktur'
+        ],
+        theme: 'space',
+        interactiveQuestion: {
+          questionText: 'Aşağıdaki gezegenlerden hangisi katı kayaç yüzeye sahip bir Karasal (İç) Gezegendir?',
+          options: {
+            A: 'Jüpiter',
+            B: 'Mars',
+            C: 'Satürn',
+            D: 'Neptün'
+          },
+          correctAnswer: 'B',
+          explanation: 'Mars, Dünya, Venüs ve Merkür karasal gezegenlerdir. Jüpiter, Satürn ve Neptün ise devasa gazsal gezegenlerdir.'
+        }
+      },
+      {
+        id: 's1-3',
+        order: 3,
+        title: 'Gaz Devleri (Dış Gezegenler)',
+        content: 'Asteroit kuşağının ötesinde bulunan Jüpiter, Satürn, Uranüs ve Neptün gazsal gezegenlerdir. Çoğunlukla hidrojen ve helyum gazlarından oluşurlar. Hepsinin halkaları ve çok sayıda uydusu vardır.',
+        narrationScript: 'Sıra sistemin devlerine geldi! Jüpiter, Satürn, Uranüs ve Neptün. Bu gezegenler o kadar büyüktür ki onlara Gaz Devleri denir. Katı bir yüzeyleri yoktur; yoğun gaz katmanlarından oluşurlar. En büyüleyici özellikleri ise hepsinin çevresinde dönen halkalara ve çok sayıda uyduya sahip olmalarıdır.',
+        bulletPoints: [
+          'Jüpiter: Sistemin en büyük kütleli dev gezegeni',
+          'Satürn: En belirgin ve parlak buz halkalarına sahip',
+          'Uranüs: Eksen eğikliği sebebiyle yuvarlanan bir fıçı gibi döner',
+          'Neptün: Güneş\'e en uzak ve en rüzgarlı soğuk gezegen'
+        ],
+        theme: 'physics'
+      },
+      {
+        id: 's1-4',
+        order: 4,
+        title: 'Venüs: En Sıcak Gezegenin Sırrı',
+        content: 'Güneş\'e en yakın gezegen Merkür olmasına rağmen, Güneş sisteminin yüzey sıcaklığı en yüksek gezegeni Venüs\'tür. Bunun nedeni, Venüs\'ün atmosferindeki aşırı yoğun karbondioksit gazının güçlü bir sera etkisi yaratmasıdır.',
+        narrationScript: 'Sınavlarda en çok karıştırılan püf noktaya geldik! Güneşe en yakın gezegen Merkür olmasına rağmen, en sıcak gezegen Venüs\'tür. Çünkü Venüs\'ün atmosferi neredeyse tamamen karbondioksitten oluşur ve bu gaz içeri giren güneş ısısını hapsederek adeta bir düdüklü tencere etkisi yaratır. Sıcaklık 460 dereceyi aşar!',
+        bulletPoints: [
+          'Güneş\'e en yakın değil ama en sıcaktır (~460 °C)',
+          'Yoğun karbondioksit ile kontrolsüz sera etkisi',
+          'Halk arasında "Çoban Yıldızı" olarak bilinir',
+          'Diğer gezegenlerin tersi yönde (doğudan batıya) döner'
+        ],
+        theme: 'chemistry',
+        interactiveQuestion: {
+          questionText: 'Venüs gezegeninin Merkür\'den daha sıcak olmasının ana sebebi nedir?',
+          options: {
+            A: 'Kendi ekseni etrafında ters dönmesi',
+            B: 'Uydusunun bulunmaması',
+            C: 'Atmosferindeki yoğun karbondioksitin oluşturduğu sera etkisi',
+            D: 'Dünya\'ya çok yakın konumda olması'
+          },
+          correctAnswer: 'C',
+          explanation: 'Venüs\'ün kalın atmosferindeki yüksek karbondioksit gazı güçlü sera etkisi yaparak ısının uzaya kaçmasını engeller ve sıcaklığı yaklaşık 460 °C\'ye çıkarır.'
+        }
+      },
+      {
+        id: 's1-5',
+        order: 5,
+        title: 'Asteroit Kuşağı ve Meteorlar',
+        content: 'Mars ile Jüpiter arasında milyonlarca kayaç parçası içeren Asteroit Kuşağı uzanır. Dünya atmosferine giren ve sürtünmeyle ışık saçan meteorlara "yıldız kayması" denir. Yere ulaşan katı parçalara ise meteorit (gök taşı) adı verilir.',
+        narrationScript: 'Güneş sistemimizin sessiz gezginleri asteroitler, Mars ile Jüpiter arasındaki geniş kuşakta yer alır. Zaman zaman rotasından çıkıp Dünya atmosferine giren parçalar hava sürtünmesiyle alev alır; biz buna yıldız kayması deriz. Eğer yanıp bitmeden yeryüzüne düşerse, ona gök taşı ya da meteorit diyoruz.',
+        bulletPoints: [
+          'Asteroit Kuşağı: 4. gezegen (Mars) ile 5. gezegen (Jüpiter) arasında',
+          'Meteor (Yıldız Kayması): Atmosferde sürtünmeyle akkor olan kayaç',
+          'Gök Taşı (Meteorit): Yeryüzüne çarpmayı başaran katı meteor'
+        ],
+        theme: 'minimal'
+      }
+    ]
+  },
+  {
+    id: 'slayt-2-vucudumuzdaki-sistemler',
+    unitNumber: 2,
+    unitTitle: '2. Ünite: Vücudumuzdaki Sistemler',
+    title: 'Dolaşım ve Sindirim Sistemi - Etkileşimli Keşif',
+    description: 'Kalbin odacıkları, damarlar, kan dolaşımları ve sindirim aşamalarını etkileşimli slaytlar ve sesli anlatımla öğrenin.',
+    grade: '6. Sınıf',
+    subject: 'Fen Bilimleri',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    slides: [
+      {
+        id: 's2-1',
+        order: 1,
+        title: 'Kalbimiz ve Dört Odacığı',
+        content: 'Kalp, göğüs boşluğunda sol akciğere daha yakın yerleşmiş, kaslı ve hayati bir pompadır. Üstte iki kulakçık, altta iki karıncık olmak üzere toplam 4 odacıktan oluşur. Sol taraf her zaman temiz, sağ taraf ise kirli kan taşır.',
+        narrationScript: 'Vücudumuzun durmaksızın çalışan motoru kalbimizdir. Bir yumruk büyüklüğündeki bu eşsiz organ dört odacıktan oluşur: İki küçük kulakçık ve iki güçlü karıncık. Unutmayın: Kalbimizin sol tarafı her zaman oksijence zengin temiz kan, sağ tarafı ise karbondioksitçe zengin kirli kan taşır.',
+        bulletPoints: [
+          'Üstte 2 kulakçık, altta 2 karıncık (Toplam 4 odacık)',
+          'Sol taraf: Oksijence zengin TEMİZ kan',
+          'Sağ taraf: Karbondioksitçe zengin KİRLİ kan',
+          'Karıncık duvarları kulakçıklara göre çok daha kaslı ve kalındır'
+        ],
+        theme: 'biology'
+      },
+      {
+        id: 's2-2',
+        order: 2,
+        title: 'Küçük ve Büyük Kan Dolaşımı',
+        content: 'Küçük dolaşım, kanı akciğerde oksijenle tazelemek için yapılır (Sağ Karıncık → Akciğer Atardamarı → Akciğer → Akciğer Toplardamarı → Sol Kulakçık). Büyük dolaşım ise temiz kanı tüm organlara taşır (Sol Karıncık → Aort → Tüm Vücut → Ana Toplardamar → Sağ Kulakçık).',
+        narrationScript: 'Vücudumuzda kan iki ayrı döngüde hareket eder. Birincisi küçük dolaşımdır: Kirli kan kalbin sağ karıncığından çıkıp akciğerlere gider, orada oksijen yüklenip kalbin sol kulakçığına geri döner. Büyük dolaşım ise kalbin sol karıncığından temiz kanı alıp Aort atardamarıyla baştan ayağa tüm dokulara dağıtır.',
+        bulletPoints: [
+          'Küçük Dolaşım Amacı: Kanı akciğerde temizlemek (oksijenlendirmek)',
+          'Büyük Dolaşım Amacı: Dokulara besin ve oksijen ulaştırmak',
+          'İstisna: Akciğer atardamarı kirli kan, akciğer toplardamarı temiz kan taşır!'
+        ],
+        theme: 'biology',
+        interactiveQuestion: {
+          questionText: 'Küçük kan dolaşımının temel görevi aşağıdakilerden hangisidir?',
+          options: {
+            A: 'Kanı akciğere götürerek oksijence temizlemek',
+            B: 'Sindirilmiş besinleri bağırsaktan karaciğere taşımak',
+            C: 'Vücut sıcaklığını düşürmek',
+            D: 'Hücrelerden atık maddeleri böbreğe iletmek'
+          },
+          correctAnswer: 'A',
+          explanation: 'Küçük kan dolaşımı kalp ile akciğer arasında gerçekleşir. Temel amacı karbondioksit yüklü kirli kanı akciğer kılcallarında oksijenle tazelemektir.'
+        }
+      },
+      {
+        id: 's2-3',
+        order: 3,
+        title: 'Mekanik ve Kimyasal Sindirim',
+        content: 'Mekanik sindirim, besinlerin enzim kullanılmadan fiziksel temas ve kas hareketleriyle küçültülmesidir. Kimyasal sindirim ise su ve özel enzimlerle besinlerin yapı taşlarına parçalanmasıdır.',
+        narrationScript: 'Yediğimiz besinlerin hücrelerimize girebilmesi için minik parçalara ayrılması gerekir. Mekanik sindirimde enzim kullanılmaz; dişlerimiz ve kaslarımız besinleri ezer. Kimyasal sindirimde ise enzim denen sihirli makaslar devreye girerek besinleri en küçük yapı taşlarına kadar böler.',
+        bulletPoints: [
+          'Mekanik: Dişler, mide kasılması ve karaciğerin safra sıvısı',
+          'Karbonhidrat Kimyasal: Ağızda başlar, ince bağırsakta biter',
+          'Protein Kimyasal: Midede başlar, ince bağırsakta biter',
+          'Yağ Kimyasal: İnce bağırsakta pankreas lipaz enzimiyle başlar ve biter'
+        ],
+        theme: 'chemistry'
+      },
+      {
+        id: 's2-4',
+        order: 4,
+        title: 'Sindirime Yardımcı Organlar ve Emilim',
+        content: 'Karaciğer safra sıvısı üreterek yağları mekanik olarak parçalar (safra enzim DEĞİLDİR!). Pankreas ise tüm besin gruplarını parçalayan enzimleri üretir. Sindirilen besinler ince bağırsaktaki parmak benzeri villus çıkıntıları ile kana geçer.',
+        narrationScript: 'Sindirimin gizli kahramanları karaciğer ve pankreastır. Lütfen dikkat: Karaciğerin ürettiği safra bir enzim değildir, sadece yağları küçük damlacıklara böler. Pankreas ise en güçlü sindirim enzimlerini salgılar. Son durakta ise ince bağırsaktaki minik villus tüycükleri besinleri emerek doğrudan kanımıza aktarır.',
+        bulletPoints: [
+          'Karaciğer safra üretir (Yağların mekanik sindirimi - Enzim DEĞİLDİR!)',
+          'Pankreas öz suyu: Karbonhidrat, protein ve yağ sindiren enzimler',
+          'İnce bağırsak villusları: Besin emiliminin ana merkezidir',
+          'Kalın bağırsak: Sadece su, mineral ve B-K vitaminlerini emer; sindirim yapmaz!'
+        ],
+        theme: 'biology',
+        interactiveQuestion: {
+          questionText: 'Karaciğer tarafından üretilen safra sıvısı ile ilgili hangisi DOĞRUDUR?',
+          options: {
+            A: 'Proteinleri kimyasal olarak sindiren bir enzimdir.',
+            B: 'Yağların mekanik (fiziksel) sindirimini gerçekleştirir.',
+            C: 'Karbonhidratları glikoza parçalar.',
+            D: 'Kalın bağırsakta emilim sağlar.'
+          },
+          correctAnswer: 'B',
+          explanation: 'Safra sıvısı bir enzim değildir; büyük yağ damlalarını mekanik olarak ufalayarak pankreas enzimlerinin daha etkili çalışmasını sağlar.'
+        }
+      }
+    ]
   }
 ];

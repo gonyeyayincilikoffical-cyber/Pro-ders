@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SubjectSummary, QuizTest, AdminAuthState } from '../types';
+import { SubjectSummary, QuizTest, InteractiveDeck, AdminAuthState } from '../types';
 import { 
   verifyAdminPassword, 
   handleFailedAttempt, 
@@ -25,7 +25,9 @@ import {
   Info,
   AlertTriangle,
   RotateCcw,
-  ArrowLeft
+  ArrowLeft,
+  Layers,
+  Volume2
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -33,12 +35,16 @@ interface AdminModalProps {
   onClose: () => void;
   summaries: SubjectSummary[];
   tests: QuizTest[];
+  decks?: InteractiveDeck[];
   onAddNewSummary: (password?: string) => void;
   onEditSummary: (summary: SubjectSummary, password?: string) => void;
   onDeleteSummary: (id: string, password?: string) => void;
   onAddNewTest: (password?: string) => void;
   onEditTest: (test: QuizTest, password?: string) => void;
   onDeleteTest: (id: string, password?: string) => void;
+  onAddNewDeck?: (password?: string) => void;
+  onEditDeck?: (deck: InteractiveDeck, password?: string) => void;
+  onDeleteDeck?: (id: string, password?: string) => void;
   onExportBackup: () => void;
   onImportBackup: (file: File, password?: string) => void;
   onLoadSampleCurriculum: (password?: string) => void;
@@ -50,12 +56,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onClose,
   summaries,
   tests,
+  decks = [],
   onAddNewSummary,
   onEditSummary,
   onDeleteSummary,
   onAddNewTest,
   onEditTest,
   onDeleteTest,
+  onAddNewDeck,
+  onEditDeck,
+  onDeleteDeck,
   onExportBackup,
   onImportBackup,
   onLoadSampleCurriculum,
@@ -74,7 +84,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
 
   // Active Admin Tab
-  const [adminTab, setAdminTab] = useState<'summaries' | 'tests' | 'backup' | 'system'>('summaries');
+  const [adminTab, setAdminTab] = useState<'summaries' | 'tests' | 'decks' | 'backup' | 'system'>('summaries');
 
   // File upload input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,6 +302,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setAdminTab('decks')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                    adminTab === 'decks'
+                      ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Etkileşimli Slaytlar ({decks.length})</span>
+                </button>
+
+                <button
                   onClick={() => setAdminTab('backup')}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                     adminTab === 'backup'
@@ -334,6 +356,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Yeni 10'luk Test Oluştur</span>
+                </button>
+              )}
+
+              {adminTab === 'decks' && (
+                <button
+                  onClick={() => onAddNewDeck?.(adminKey)}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Slayt Stüdyosu: Yeni Slayt</span>
                 </button>
               )}
             </div>
@@ -495,7 +527,90 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 3: VERİ YEDEKLEME & GERİ YÜKLEME */}
+              {/* TAB: ETKİLEŞİMLİ EĞİTİM SLAYTLARI YÖNETİMİ */}
+              {adminTab === 'decks' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+                        Yayınlanan Etkileşimli Eğitim Slaytları
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Yapay zeka seslendirmeli, görsel şema yüklü ve ara kontrol sorulu 6. sınıf slaytları
+                      </p>
+                    </div>
+                  </div>
+
+                  {decks.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                      <div className="text-slate-400 text-xs">
+                        Henüz sisteme eklenmiş bir eğitim slaytı bulunmamaktadır.
+                      </div>
+                      <button
+                        onClick={() => onAddNewDeck?.(adminKey)}
+                        className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>İlk Slayt Sunumunu Hazırla</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                      {decks.map((deck) => (
+                        <div
+                          key={deck.id}
+                          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                        >
+                          <div className="space-y-1">
+                            <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-400">
+                              {deck.unitTitle}
+                            </span>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                              {deck.title}
+                            </h4>
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <span className="font-semibold text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>{deck.slides.length} Slayt</span>
+                              </span>
+                              <span>·</span>
+                              <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-medium">
+                                <Volume2 className="w-3.5 h-3.5" />
+                                <span>Yapay Zeka Seslendirmeli</span>
+                              </span>
+                              <span>·</span>
+                              <span>Bulut Senkronize</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                            <button
+                              onClick={() => onEditDeck?.(deck, adminKey)}
+                              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              title="Slaytı Düzenle"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`"${deck.title}" slayt sunumunu silmek istediğinize emin misiniz?`)) {
+                                  onDeleteDeck?.(deck.id, adminKey);
+                                }
+                              }}
+                              className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                              title="Sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: VERİ YEDEKLEME & GERİ YÜKLEME */}
               {adminTab === 'backup' && (
                 <div className="space-y-6">
                   <div>

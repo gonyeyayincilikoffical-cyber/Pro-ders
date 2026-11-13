@@ -57,6 +57,44 @@ export interface TestAttempt {
   timeSpentSeconds: number;
 }
 
+export type SlideTheme = 'space' | 'biology' | 'chemistry' | 'physics' | 'minimal';
+
+export interface InteractiveSlide {
+  id: string;
+  order: number;
+  title: string;
+  content: string; // The core explanation narrative text (voiced by AI)
+  narrationScript?: string; // Optional detailed teacher script for voiceover
+  bulletPoints?: string[]; // Bullet points
+  imageUrl?: string; // Uploaded diagram / image (data URL or web URL)
+  imageCaption?: string;
+  theme: SlideTheme;
+  interactiveQuestion?: {
+    questionText: string;
+    options: {
+      A: string;
+      B: string;
+      C: string;
+      D: string;
+    };
+    correctAnswer: QuestionOption;
+    explanation: string;
+  };
+}
+
+export interface InteractiveDeck {
+  id: string;
+  unitNumber: number;
+  unitTitle: string;
+  title: string;
+  description: string;
+  grade: string; // "6. Sınıf"
+  subject: string; // "Fen Bilimleri"
+  slides: InteractiveSlide[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAuthState {
   isAuthenticated: boolean;
   failedAttempts: number;
@@ -68,4 +106,5 @@ export interface AppBackupData {
   exportDate: string;
   summaries: SubjectSummary[];
   tests: QuizTest[];
+  decks?: InteractiveDeck[];
 }
